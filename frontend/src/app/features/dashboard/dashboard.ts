@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api.service';
 import { Budget, DashboardSummary } from '../../core/models';
 import { KesPipe } from '../../core/kes.pipe';
+import { MoneyService } from '../../core/money.service';
 import { fmtDay } from '../../core/format';
 import { BarChartComponent } from '../../shared/bar-chart';
 import { DonutComponent, DonutSegment } from '../../shared/donut';
@@ -171,6 +172,7 @@ import { RingComponent } from '../../shared/ring';
 })
 export class DashboardComponent implements OnInit {
   private api = inject(ApiService);
+  private money = inject(MoneyService);
   data = signal<DashboardSummary | null>(null);
   activeBudget = signal<Budget | null>(null);
   loading = signal(true);
@@ -200,7 +202,7 @@ export class DashboardComponent implements OnInit {
 
   totalSpendShort = computed(() => {
     const total = (this.data()?.categoryBreakdown ?? []).reduce((s, c) => s + c.total, 0);
-    return new KesPipe().transform(total);
+    return this.money.format(total);
   });
 
   topItems(b: Budget) { return [...b.items].sort((a, c) => (c.spent || 0) - (a.spent || 0)).slice(0, 3); }

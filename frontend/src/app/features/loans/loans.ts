@@ -5,6 +5,7 @@ import { ApiService } from '../../core/api.service';
 import { InterestType, LenderType, Loan } from '../../core/models';
 import { KesPipe } from '../../core/kes.pipe';
 import { fmtDate, todayIso } from '../../core/format';
+import { bankColor as bankColorFor, lenderIcon as lenderIconFor } from '../../core/bank-colors';
 
 const LENDER_TYPES: { v: LenderType; l: string }[] = [
   { v: 'BANK', l: 'Bank' }, { v: 'MOBILE_APP', l: 'Mobile app' }, { v: 'SACCO', l: 'SACCO' }, { v: 'INDIVIDUAL', l: 'Individual' },
@@ -33,13 +34,13 @@ interface LoanForm {
           <div class="card card-pad">
             <div class="between">
               <div class="row" style="gap:12px">
-                <div class="txicon" style="background:var(--brand-soft);font-size:18px"><i class="bi bi-bank"></i></div>
+                <div class="txicon" [style.background]="tint(bankColor(l))" [style.color]="bankColor(l)" style="font-size:18px"><i class="bi" [class]="lenderIcon(l.lenderType)"></i></div>
                 <div>
                   <div style="font-weight:700;font-size:15px">{{ l.lender }}</div>
                   <div class="muted" style="font-size:12px">{{ lenderLabel(l.lenderType) }} · {{ l.interestRate }}% {{ l.interestType | lowercase }}</div>
                 </div>
               </div>
-              <span class="badge" [class.income]="l.status === 'PAID'" [class.expense]="l.status === 'ACTIVE'">{{ l.status | lowercase }}</span>
+              <span class="badge" [style.color]="statusColor(l.status)" [style.background]="tint(statusColor(l.status))">{{ l.status | lowercase }}</span>
             </div>
 
             <div class="mt-16">
@@ -47,7 +48,7 @@ interface LoanForm {
               <div style="font-size:24px;font-weight:720;letter-spacing:-.02em" class="neg">{{ l.outstanding | kes }}</div>
             </div>
 
-            <div class="progress mt-8"><span [style.width.%]="l.progress * 100" style="background:var(--series-1)"></span></div>
+            <div class="progress mt-8"><span [style.width.%]="l.progress * 100" [style.background]="bankColor(l)"></span></div>
             <div class="between muted" style="font-size:12px;margin-top:6px">
               <span>{{ (l.progress * 100).toFixed(0) }}% repaid ({{ l.totalPaid | kes }})</span>
               <span>of {{ l.totalRepayable | kes }}</span>
@@ -211,5 +212,9 @@ export class LoansComponent implements OnInit {
   }
 
   lenderLabel(t: LenderType): string { return LENDER_TYPES.find((x) => x.v === t)?.l ?? t; }
+  bankColor(l: Loan): string { return bankColorFor(l.lender, l.lenderType); }
+  lenderIcon(t: LenderType): string { return lenderIconFor(t); }
+  statusColor(s: string): string { return s === 'PAID' ? 'var(--income)' : s === 'DEFAULTED' ? 'var(--expense)' : 'var(--debt)'; }
+  tint(c: string): string { return `color-mix(in srgb, ${c} 16%, transparent)`; }
   date(iso: string): string { return fmtDate(iso); }
 }

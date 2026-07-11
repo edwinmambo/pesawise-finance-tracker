@@ -33,4 +33,10 @@ export class UsersService {
     const user = this.repo.create({ ...data, email: data.email?.toLowerCase() });
     return this.repo.save(user);
   }
+
+  async update(id: string, data: Partial<User>): Promise<User> {
+    const user = await this.findById(id);
+    Object.assign(user, data);
+    return this.repo.save(user);
+  }
 }

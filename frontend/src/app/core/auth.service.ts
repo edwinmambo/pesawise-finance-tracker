@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { ApplicationRef, Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -11,6 +11,7 @@ const TOKEN_KEY = 'pesawise_token';
 export class AuthService {
   private http = inject(HttpClient);
   private router = inject(Router);
+  private appRef = inject(ApplicationRef);
 
   readonly token = signal<string | null>(localStorage.getItem(TOKEN_KEY));
   readonly user = signal<User | null>(null);
@@ -38,6 +39,15 @@ export class AuthService {
     } catch {
       this.logout();
     }
+  }
+
+  async updateProfile(patch: Partial<Pick<User, 'name' | 'currency' | 'avatarColor'>>): Promise<void> {
+    const user = await firstValueFrom(
+      this.http.patch<User>(`${API_BASE}/auth/me`, patch),
+    );
+    this.user.set(user);
+    // Currency drives the (impure) money pipe — refresh every view.
+    this.appRef.tick();
   }
 
   logout(): void {

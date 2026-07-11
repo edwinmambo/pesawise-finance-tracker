@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
 import { Budget, BudgetItem, BudgetTemplate, Category } from '../../core/models';
 import { KesPipe } from '../../core/kes.pipe';
+import { IconPickerComponent } from '../../shared/icon-picker';
 
 interface ItemForm {
   categoryId?: string;
@@ -15,7 +16,7 @@ interface ItemForm {
 @Component({
   selector: 'app-budgets',
   standalone: true,
-  imports: [FormsModule, KesPipe],
+  imports: [FormsModule, KesPipe, IconPickerComponent],
   template: `
     <div class="page-actions">
       <div>
@@ -65,13 +66,13 @@ interface ItemForm {
       } @else {
         <div class="grid cols-2 mt-8">
           @for (b of budgets(); track b.id) {
-            <div class="card budget-card" [class.active-budget]="b.isActive">
+            <div class="card budget-card" [class.active-budget]="b.isActive" [style.--card-accent]="b.color">
               <div class="card-head">
                 <div class="row" style="gap:12px">
                   <span class="tileicon" [style.background]="tint(b.color)" [style.color]="b.color" style="font-size:19px">{{ b.icon }}</span>
                   <div>
                     <h3>{{ b.name }}
-                      @if (b.isActive) { <span class="badge" style="background:var(--brand-soft);color:var(--brand-strong);margin-left:6px">Active</span> }
+                      @if (b.isActive) { <span class="badge" [style.background]="tint(b.color)" [style.color]="b.color" style="margin-left:6px">Active</span> }
                     </h3>
                     <div class="sub">{{ planLabel(b.planType) }} · {{ b.items.length }} categories</div>
                   </div>
@@ -100,7 +101,7 @@ interface ItemForm {
                   </div>
                 </div>
                 <div class="progress thick" [class.over]="b.totalSpent > b.totalLimit">
-                  <span [style.width.%]="pct(b.totalSpent, b.totalLimit)" [style.background]="b.totalSpent > b.totalLimit ? 'var(--critical)' : 'var(--brand)'"></span>
+                  <span [style.width.%]="pct(b.totalSpent, b.totalLimit)" [style.background]="b.totalSpent > b.totalLimit ? 'var(--critical)' : b.color"></span>
                 </div>
 
                 <div class="items mt-16">
@@ -142,7 +143,13 @@ interface ItemForm {
               <div class="field"><label>Planned monthly income (KES)</label><input class="input" type="number" [(ngModel)]="form.expectedIncome" /></div>
             </div>
 
-            <label class="field-label">Categories &amp; limits</label>
+            <div class="row gap-8" style="align-items:center;margin:2px 0 12px">
+              <span class="tileicon" [style.background]="tint(form.color)" [style.color]="form.color" style="font-size:18px">{{ form.icon }}</span>
+              <span class="muted" style="font-size:12.5px">Give this budget its own icon &amp; theme colour</span>
+            </div>
+            <app-icon-picker [(icon)]="form.icon" [(color)]="form.color" />
+
+            <label class="field-label" style="margin-top:18px">Categories &amp; limits</label>
             <div class="builder">
               @for (it of form.items; track $index) {
                 <div class="builder-row">
@@ -179,7 +186,8 @@ interface ItemForm {
   `,
   styles: [`
     .plan-card .card-pad { display: flex; flex-direction: column; height: 100%; }
-    .budget-card.active-budget { border-color: color-mix(in srgb, var(--brand) 45%, var(--border)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand) 30%, transparent), var(--shadow); }
+    .budget-card { --card-accent: var(--brand); }
+    .budget-card.active-budget { border-color: color-mix(in srgb, var(--card-accent) 55%, var(--border)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--card-accent) 35%, transparent), var(--shadow); }
     .items { display: flex; flex-direction: column; gap: 14px; }
     .item { display: flex; align-items: center; gap: 12px; }
     .field-label { font-size: 12.5px; font-weight: 640; color: var(--ink-2); display: block; margin: 6px 0 10px; }
@@ -202,7 +210,7 @@ export class BudgetsComponent implements OnInit {
 
   showModal = signal(false);
   editingId = signal<string | null>(null);
-  form: { name: string; expectedIncome: number; items: ItemForm[] } = { name: '', expectedIncome: 0, items: [] };
+  form: { name: string; expectedIncome: number; icon: string; color: string; items: ItemForm[] } = { name: '', expectedIncome: 0, icon: '📋', color: '#10a37f', items: [] };
 
   expenseCategories = computed(() => this.categories().filter((c) => c.kind === 'EXPENSE'));
 
@@ -251,7 +259,7 @@ export class BudgetsComponent implements OnInit {
 
   openCreate(): void {
     this.editingId.set(null);
-    this.form = { name: '', expectedIncome: 0, items: [{ label: '', limitAmount: 0, icon: '💸', color: '#64748b' }] };
+    this.form = { name: '', expectedIncome: 0, icon: '📋', color: '#10a37f', items: [{ label: '', limitAmount: 0, icon: '💸', color: '#64748b' }] };
     this.showModal.set(true);
   }
 
@@ -260,6 +268,8 @@ export class BudgetsComponent implements OnInit {
     this.form = {
       name: b.name,
       expectedIncome: b.expectedIncome,
+      icon: b.icon,
+      color: b.color,
       items: b.items.map((i) => ({ categoryId: i.categoryId, label: i.label, limitAmount: i.limitAmount, icon: i.icon, color: i.color })),
     };
     this.showModal.set(true);
@@ -284,7 +294,7 @@ export class BudgetsComponent implements OnInit {
     const items: BudgetItem[] = this.form.items
       .filter((i) => i.label.trim() && i.limitAmount > 0)
       .map((i) => ({ categoryId: i.categoryId, label: i.label.trim(), limitAmount: +i.limitAmount, icon: i.icon, color: i.color }));
-    const body: any = { name: this.form.name.trim(), expectedIncome: +this.form.expectedIncome || 0, items, planType: 'CUSTOM', isActive: true };
+    const body: any = { name: this.form.name.trim(), expectedIncome: +this.form.expectedIncome || 0, icon: this.form.icon, color: this.form.color, items, planType: 'CUSTOM', isActive: true };
     this.saving.set(true);
     const req = this.editingId()
       ? this.api.updateBudget(this.editingId()!, body)

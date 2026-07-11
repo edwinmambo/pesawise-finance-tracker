@@ -12,7 +12,7 @@ export interface DonutSegment {
   standalone: true,
   template: `
     <div class="donut-wrap">
-      <svg [attr.viewBox]="'0 0 ' + size() + ' ' + size()" [style.width.px]="size()" [style.height.px]="size()">
+      <svg class="donut-svg" [attr.viewBox]="'0 0 ' + size() + ' ' + size()" [style.width.px]="size()" [style.height.px]="size()">
         <circle [attr.cx]="c()" [attr.cy]="c()" [attr.r]="r()" fill="none"
                 [attr.stroke]="'var(--grid)'" [attr.stroke-width]="thickness()" />
         @for (seg of arcs(); track seg.label) {
@@ -43,6 +43,8 @@ export interface DonutSegment {
   `,
   styles: [`
     .donut-wrap { position: relative; display: inline-grid; place-items: center; }
+    .donut-svg { animation: donutIn .5s cubic-bezier(.34,.12,.2,1) both; transform-origin: center; }
+    @keyframes donutIn { from { transform: rotate(-14deg) scale(.9); opacity: 0; } to { transform: rotate(0) scale(1); opacity: 1; } }
     .donut-center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none; }
     .dc-icon { font-size: 20px; }
     .dc-val { font-size: 20px; font-weight: 720; letter-spacing: -.02em; }

@@ -57,14 +57,18 @@ goals and an applied budget. **Tap a card on the login screen** — or use these
 ## ✨ Features
 
 - 📊 **Dashboard** — net worth, income vs expenses (6-month chart), spending by category, a **budget snapshot**, savings & loan summaries, recent activity
-- 💳 **Transactions** — income/expense with **M-Pesa / Bank / Cash / SACCO** channels, M-Pesa references, Kenyan categories, filtering & search
-- 🧮 **Budgets** — apply a ready-made **Comrade** (students), **Hustler** (casual/gig workers) or **Corporate** (salaried) plan, or **build your own** with per-category limits and live spend-vs-limit tracking
-- 🏦 **Loans** — bank / mobile-app / SACCO loans with **flat & reducing-balance interest**, repayment progress & history
+- 💳 **Transactions** — income/expense with **M-Pesa / Bank / Cash / SACCO** channels, M-Pesa references, Kenyan categories, filtering & search; **card layout on mobile**
+- 🧮 **Budgets** — apply a ready-made **Comrade** (students), **Hustler** (casual/gig workers) or **Corporate** (salaried) plan, or **build your own** with per-category limits and live spend-vs-limit tracking; each budget is **themed by its own colour**
+- 📅 **Calendar** — a month grid of daily income/spending (heat-tinted), with day drill-down and quick-add on any date
+- 🏦 **Loans** — bank / mobile-app / SACCO loans with **flat & reducing-balance interest**, repayment progress & history; **themed in each lender's brand colour** (KCB, Equity, Absa…)
 - 🎯 **Savings goals** — goal-based saving with progress rings and projected targets
 - 📈 **Reports** — period analysis, top categories, spending by channel, savings rate
-- ⚙️ **Settings** — accounts, categories, profile, light/dark theme
+- 🎨 **Themes** — Light & softened-Dark modes × 4 accent palettes (Emerald, Ocean, Violet, Sunset), from a Google-style profile menu
+- 💱 **Multi-currency display** — switch symbol & formatting (KES, USD, EUR, GBP, TZS, UGX, ZAR, NGN)
+- 🙈 **Privacy** — balances hidden by default; tap the eye to reveal
+- ⚙️ **Settings** — accounts, categories (with an emoji + colour picker), and profile
 - 🔐 **Auth** — email + password with JWT, per-user data isolation
-- 📱 **Mobile-first** — responsive Bootstrap 5 UI with an off-canvas menu; looks great on phones & desktop, light or dark
+- 📱 **Mobile-first** — responsive Bootstrap 5 UI with an off-canvas menu and card layouts; looks great on phones & desktop, light or dark
 
 ---
 
@@ -72,7 +76,7 @@ goals and an applied budget. **Tap a card on the login screen** — or use these
 
 | Layer | Tech |
 |-------|------|
-| Frontend | **Angular 21** (standalone, signals, zoneless) + **Bootstrap 5.3** + Bootstrap Icons, hand-built SVG charts |
+| Frontend | **Angular 21** (standalone, signals, zoneless) + **Bootstrap 5.3** + Bootstrap Icons + **Plus Jakarta Sans**, hand-built animated SVG charts |
 | Backend | **NestJS 11** + TypeORM, JWT auth |
 | Database | **PostgreSQL 16** |
 | Orchestration | **Docker Compose** (one command, nginx-served frontend proxying the API) |

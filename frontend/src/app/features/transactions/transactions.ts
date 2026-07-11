@@ -55,7 +55,8 @@ interface TxForm {
     <div class="card">
       @if (loading()) { <div class="spinner"></div> }
       @else if (filtered().length) {
-        <div class="table-wrap">
+        <!-- Desktop table -->
+        <div class="table-wrap d-none d-md-block">
           <table class="table" style="min-width:600px">
             <thead><tr><th></th><th>Description</th><th>Category</th><th>Channel</th><th>Date</th><th class="num">Amount</th><th></th></tr></thead>
             <tbody>
@@ -80,6 +81,22 @@ interface TxForm {
               }
             </tbody>
           </table>
+        </div>
+
+        <!-- Mobile cards -->
+        <div class="tx-list d-md-none">
+          @for (t of filtered(); track t.id) {
+            <button type="button" class="tx-card" (click)="openEdit(t)">
+              <span class="txicon" [style.background]="tint(t.category?.color)">{{ t.category?.icon || (t.type === 'INCOME' ? '💰' : '🧾') }}</span>
+              <span class="tx-main">
+                <span class="tx-title">{{ t.note || t.category?.name || 'Transaction' }}</span>
+                <span class="tx-sub">{{ t.category?.name || channelLabel(t.channel) }} · {{ date(t.date) }}</span>
+              </span>
+              <span class="tx-amt tabnum" [class.pos]="t.type === 'INCOME'" [class.neg]="t.type === 'EXPENSE'">
+                {{ t.type === 'INCOME' ? '+' : '−' }}{{ t.amount | kes }}
+              </span>
+            </button>
+          }
         </div>
       } @else {
         <div class="empty"><div class="big">🧾</div>No transactions match. Add your first one!</div>
@@ -125,6 +142,8 @@ interface TxForm {
             }
           </div>
           <div class="modal-foot">
+            @if (editingId()) { <button class="btn btn-danger" (click)="removeCurrent()"><i class="bi bi-trash"></i></button> }
+            <div style="flex:1"></div>
             <button class="btn btn-ghost" (click)="showModal.set(false)">Cancel</button>
             <button class="btn btn-primary" (click)="save()" [disabled]="!form.amount || saving()">{{ saving() ? 'Saving…' : 'Save' }}</button>
           </div>
@@ -137,6 +156,21 @@ interface TxForm {
       .filters .f-search, .filters .f-select, .filters .f-chips { flex: 1 1 100%; max-width: 100% !important; }
       .filters .f-chips .chip { flex: 1 1 auto; justify-content: center; }
     }
+    .tx-list { display: flex; flex-direction: column; }
+    .tx-card {
+      display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+      padding: 12px 16px; border: none; background: transparent; cursor: pointer;
+      border-bottom: 1px solid var(--border); color: var(--ink);
+      animation: txIn .32s ease both;
+    }
+    .tx-card:last-child { border-bottom: none; }
+    .tx-card:active { background: var(--surface-2); }
+    .tx-card .txicon { flex-shrink: 0; }
+    .tx-main { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+    .tx-title { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tx-sub { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tx-amt { font-weight: 700; font-size: 14px; flex-shrink: 0; }
+    @keyframes txIn { from { opacity: 0; transform: translateY(4px); } }
   `],
 })
 export class TransactionsComponent implements OnInit {
@@ -232,6 +266,11 @@ export class TransactionsComponent implements OnInit {
   remove(t: Transaction): void {
     if (!confirm('Delete this transaction?')) return;
     this.api.deleteTransaction(t.id).subscribe(() => this.reload());
+  }
+  removeCurrent(): void {
+    const id = this.editingId();
+    if (!id || !confirm('Delete this transaction?')) return;
+    this.api.deleteTransaction(id).subscribe(() => { this.showModal.set(false); this.reload(); });
   }
 
   channelLabel(ch: string): string { return ch === 'MPESA' ? 'M-Pesa' : ch.charAt(0) + ch.slice(1).toLowerCase(); }

@@ -1,30 +1,68 @@
 import { Injectable, signal } from '@angular/core';
 
-type Theme = 'light' | 'dark';
-const KEY = 'pesawise_theme';
+export type ThemeMode = 'light' | 'dark';
+export type Accent = 'emerald' | 'ocean' | 'violet' | 'sunset';
+
+export const ACCENTS: { id: Accent; name: string; swatch: string }[] = [
+  { id: 'emerald', name: 'Emerald', swatch: '#10a37f' },
+  { id: 'ocean', name: 'Ocean', swatch: '#1f7ae0' },
+  { id: 'violet', name: 'Violet', swatch: '#7c5cdb' },
+  { id: 'sunset', name: 'Sunset', swatch: '#e8722a' },
+];
+
+const MODE_KEY = 'pesawise_theme';
+const ACCENT_KEY = 'pesawise_accent';
 
 @Injectable({ providedIn: 'root' })
 export class ThemeService {
-  readonly theme = signal<Theme>(this.initial());
+  readonly mode = signal<ThemeMode>(this.initialMode());
+  readonly accent = signal<Accent>(this.initialAccent());
+
+  /** Back-compat alias so existing `theme.theme()` callers keep working. */
+  readonly theme = this.mode;
 
   constructor() {
-    this.apply(this.theme());
+    this.applyMode(this.mode());
+    this.applyAccent(this.accent());
   }
 
+  toggleMode(): void {
+    this.setMode(this.mode() === 'dark' ? 'light' : 'dark');
+  }
+
+  /** Back-compat alias. */
   toggle(): void {
-    const next: Theme = this.theme() === 'dark' ? 'light' : 'dark';
-    this.theme.set(next);
-    localStorage.setItem(KEY, next);
-    this.apply(next);
+    this.toggleMode();
   }
 
-  private initial(): Theme {
-    const saved = localStorage.getItem(KEY) as Theme | null;
-    if (saved) return saved;
+  setMode(mode: ThemeMode): void {
+    this.mode.set(mode);
+    localStorage.setItem(MODE_KEY, mode);
+    this.applyMode(mode);
+  }
+
+  setAccent(accent: Accent): void {
+    this.accent.set(accent);
+    localStorage.setItem(ACCENT_KEY, accent);
+    this.applyAccent(accent);
+  }
+
+  private initialMode(): ThemeMode {
+    const saved = localStorage.getItem(MODE_KEY) as ThemeMode | null;
+    if (saved === 'light' || saved === 'dark') return saved;
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
 
-  private apply(theme: Theme): void {
-    document.documentElement.setAttribute('data-theme', theme);
+  private initialAccent(): Accent {
+    const saved = localStorage.getItem(ACCENT_KEY) as Accent | null;
+    return ACCENTS.some((a) => a.id === saved) ? (saved as Accent) : 'emerald';
+  }
+
+  private applyMode(mode: ThemeMode): void {
+    document.documentElement.setAttribute('data-theme', mode);
+  }
+
+  private applyAccent(accent: Accent): void {
+    document.documentElement.setAttribute('data-accent', accent);
   }
 }

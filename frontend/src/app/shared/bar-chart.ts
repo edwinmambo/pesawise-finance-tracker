@@ -11,6 +11,8 @@ export interface MonthPoint {
 const W = 720;
 const H = 260;
 const PAD = { l: 46, r: 14, t: 16, b: 30 };
+const MAX_GROUP_W = 130; // cap so sparse data stays tidy instead of stretching
+const MAX_BAR_W = 44;
 
 @Component({
   selector: 'app-bar-chart',
@@ -18,7 +20,7 @@ const PAD = { l: 46, r: 14, t: 16, b: 30 };
   imports: [KesPipe, KesShortPipe],
   template: `
     <div class="chart-wrap">
-      <svg [attr.viewBox]="'0 0 ' + W + ' ' + H" preserveAspectRatio="none" class="chart-svg">
+      <svg [attr.viewBox]="'0 0 ' + W + ' ' + H" preserveAspectRatio="xMidYMid meet" class="chart-svg">
         <!-- gridlines + y labels -->
         @for (g of gridlines(); track g.v) {
           <line [attr.x1]="PAD.l" [attr.x2]="W - PAD.r" [attr.y1]="g.y" [attr.y2]="g.y"
@@ -28,10 +30,10 @@ const PAD = { l: 46, r: 14, t: 16, b: 30 };
         }
         <!-- bars -->
         @for (grp of groups(); track grp.month) {
-          <rect [attr.x]="grp.ix" [attr.y]="grp.incomeY" [attr.width]="barW()" [attr.height]="grp.incomeH"
-                rx="3" fill="var(--income)" [style.opacity]="dim(grp.i)" style="transition:opacity .15s" />
-          <rect [attr.x]="grp.ex" [attr.y]="grp.expenseY" [attr.width]="barW()" [attr.height]="grp.expenseH"
-                rx="3" fill="var(--expense)" [style.opacity]="dim(grp.i)" style="transition:opacity .15s" />
+          <rect class="bar" [attr.x]="grp.ix" [attr.y]="grp.incomeY" [attr.width]="barW()" [attr.height]="grp.incomeH"
+                rx="4" fill="var(--income)" [style.opacity]="dim(grp.i)" [style.animation-delay.ms]="grp.i * 55" />
+          <rect class="bar" [attr.x]="grp.ex" [attr.y]="grp.expenseY" [attr.width]="barW()" [attr.height]="grp.expenseH"
+                rx="4" fill="var(--expense)" [style.opacity]="dim(grp.i)" [style.animation-delay.ms]="grp.i * 55 + 25" />
           <text [attr.x]="grp.cx" [attr.y]="H - 10" text-anchor="middle" fill="var(--muted)" font-size="11.5">{{ grp.label }}</text>
           <rect [attr.x]="grp.gx" [attr.y]="PAD.t" [attr.width]="groupW()" [attr.height]="H - PAD.t - PAD.b"
                 fill="transparent" style="cursor:pointer"
@@ -49,8 +51,10 @@ const PAD = { l: 46, r: 14, t: 16, b: 30 };
     </div>
   `,
   styles: [`
-    .chart-wrap { position: relative; width: 100%; }
-    .chart-svg { width: 100%; height: 260px; display: block; }
+    .chart-wrap { position: relative; width: 100%; margin-inline: auto; }
+    .chart-svg { width: 100%; height: auto; display: block; overflow: visible; }
+    .bar { transform-box: fill-box; transform-origin: center bottom; animation: barGrow .55s cubic-bezier(.34,.12,.2,1) both; transition: opacity .15s; }
+    @keyframes barGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
     .tip {
       position: absolute; top: 6px; transform: translateX(-50%);
       background: var(--surface); border: 1px solid var(--border-2); border-radius: 10px;
@@ -72,16 +76,19 @@ export class BarChartComponent {
 
   private max = computed(() => {
     const m = Math.max(1, ...this.data().flatMap((d) => [d.income, d.expense]));
-    // round up to a nice number
     const mag = Math.pow(10, Math.floor(Math.log10(m)));
     return Math.ceil(m / mag) * mag;
   });
 
   private plotH = H - PAD.t - PAD.b;
   private plotW = W - PAD.l - PAD.r;
+  private n = computed(() => Math.max(this.data().length, 1));
 
-  groupW = computed(() => this.plotW / Math.max(this.data().length, 1));
-  barW = computed(() => this.groupW() * 0.32);
+  // Cap the per-group width so a couple of data points don't stretch across the
+  // whole plot; the cluster is then centred within the plot area.
+  groupW = computed(() => Math.min(this.plotW / this.n(), MAX_GROUP_W));
+  barW = computed(() => Math.min(this.groupW() * 0.3, MAX_BAR_W));
+  private startX = computed(() => PAD.l + (this.plotW - this.groupW() * this.n()) / 2);
 
   gridlines = computed(() => {
     const max = this.max();
@@ -97,8 +104,9 @@ export class BarChartComponent {
     const max = this.max();
     const gw = this.groupW();
     const bw = this.barW();
+    const sx = this.startX();
     return this.data().map((d, i) => {
-      const gx = PAD.l + i * gw;
+      const gx = sx + i * gw;
       const cx = gx + gw / 2;
       const incomeH = (d.income / max) * this.plotH;
       const expenseH = (d.expense / max) * this.plotH;
@@ -108,9 +116,8 @@ export class BarChartComponent {
         label: monthLabel(d.month),
         gx,
         cx,
-        groupW: gw,
-        ix: cx - bw - 2,
-        ex: cx + 2,
+        ix: cx - bw - 3,
+        ex: cx + 3,
         incomeH,
         expenseH,
         incomeY: PAD.t + this.plotH - incomeH,
@@ -126,9 +133,9 @@ export class BarChartComponent {
     if (a === null) return null;
     const g = this.groups()[a];
     if (!g) return null;
-    const [y, m] = g.month.split('-');
+    const [y] = g.month.split('-');
     const full = `${monthLabel(g.month)} ${y}`;
-    return { ...g, full, leftPct: ((g.cx) / W) * 100 };
+    return { ...g, full, leftPct: (g.cx / W) * 100 };
   });
 
   dim(i: number): number {

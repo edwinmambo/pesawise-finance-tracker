@@ -10,9 +10,32 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { User } from '../users/user.entity';
 
+export interface PublicUser {
+  id: string;
+  name: string;
+  email: string;
+  currency: string;
+  persona?: string;
+  tagline?: string;
+  avatarColor?: string;
+}
+
 export interface AuthResult {
   token: string;
-  user: { id: string; name: string; email: string; currency: string };
+  user: PublicUser;
+}
+
+/** The user shape exposed to the client (never includes the password hash). */
+export function toPublicUser(user: User): PublicUser {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    currency: user.currency,
+    persona: user.persona,
+    tagline: user.tagline,
+    avatarColor: user.avatarColor,
+  };
 }
 
 @Injectable()
@@ -50,14 +73,6 @@ export class AuthService {
 
   private buildResult(user: User): AuthResult {
     const token = this.jwt.sign({ sub: user.id, email: user.email });
-    return {
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        currency: user.currency,
-      },
-    };
+    return { token, user: toPublicUser(user) };
   }
 }

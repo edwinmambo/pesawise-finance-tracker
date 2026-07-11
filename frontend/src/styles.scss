@@ -7,6 +7,9 @@
 /* ---- Bootstrap: theme overrides, then a lean selective import ------------ */
 @use "sass:color";
 
+/* Self-hosted variable font — offline / Docker-safe */
+@import "@fontsource-variable/plus-jakarta-sans/index.css";
+
 @import "bootstrap/scss/functions";
 
 $primary:       #10a37f;
@@ -14,7 +17,7 @@ $success:       #16a34a;
 $danger:        #d03b3b;
 $warning:       #fab219;
 $info:          #2a78d6;
-$font-family-sans-serif: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+$font-family-sans-serif: "Plus Jakarta Sans Variable", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 $border-radius:    .75rem;
 $border-radius-sm:  .5rem;
 $border-radius-lg:  1rem;
@@ -44,10 +47,9 @@ $enable-negative-margins: true;
    Design tokens (emerald — a nod to Kenya's mobile-money green). Light/dark.
    ============================================================================ */
 :root {
-  --brand:        #10a37f;
-  --brand-strong: #0d8a6b;
-  --brand-soft:   #e6f6f1;
-  --brand-grad:   linear-gradient(135deg, #12b98c 0%, #0d8a6b 100%);
+  /* --brand / --brand-strong come from the accent palette (defined below). */
+  --brand-soft: color-mix(in srgb, var(--brand) 14%, var(--surface));
+  --brand-grad: linear-gradient(135deg, var(--brand), color-mix(in srgb, var(--brand), #000 20%));
 
   --page:      #f3f5f4;
   --surface:   #ffffff;
@@ -76,8 +78,12 @@ $enable-negative-margins: true;
   --series-7: #e87ba4;
   --series-8: #eb6834;
 
-  --income:  #1baf7a;
-  --expense: #e34948;
+  /* Semantic money colors — one consistent system */
+  --income:   #12a373;
+  --expense:  #e0413f;
+  --transfer: #79828b;
+  --savings:  #6b57d3;
+  --debt:     #e0891e;
 
   --radius:    16px;
   --radius-sm: 10px;
@@ -102,46 +108,76 @@ $enable-negative-margins: true;
   --bs-primary-rgb: 16, 163, 127;
 }
 
+/* ---- Softened dark mode (navy / charcoal — not black) ------------------- */
 :root[data-theme="dark"] {
-  --brand:        #12b98c;
-  --brand-strong: #35d3a8;
-  --brand-soft:   rgba(18,185,140,.16);
-  --brand-grad:   linear-gradient(135deg, #12b98c 0%, #0a7d5f 100%);
-
-  --page:      #0b0c0c;
-  --surface:   #17191a;
-  --surface-2: #1f2223;
-  --ink:       #f4f6f5;
-  --ink-2:     #b9c0bd;
-  --muted:     #838a87;
-  --grid:      #2b2f30;
-  --border:    rgba(255, 255, 255, 0.08);
-  --border-2:  rgba(255, 255, 255, 0.16);
-  --shadow:    0 1px 2px rgba(0,0,0,.4), 0 10px 30px rgba(0,0,0,.5);
-  --shadow-lg: 0 20px 56px rgba(0,0,0,.62);
+  --page:      #12141c;
+  --surface:   #1a1d27;
+  --surface-2: #232734;
+  --ink:       #eef1f6;
+  --ink-2:     #b4bccb;
+  --muted:     #7e8798;
+  --grid:      #2c3140;
+  --border:    rgba(255, 255, 255, 0.07);
+  --border-2:  rgba(255, 255, 255, 0.14);
+  --shadow:    0 1px 2px rgba(0,0,0,.35), 0 10px 30px rgba(0,0,0,.42);
+  --shadow-lg: 0 20px 56px rgba(0,0,0,.52);
 
   --good-ink: #35d3a8;
   --warning:  #f5b53a;
 
   --series-1: #3987e5; --series-2: #199e70; --series-3: #c98500; --series-4: #12a012;
   --series-5: #9085e9; --series-6: #e66767; --series-7: #d55181; --series-8: #d95926;
-  --income:  #35d3a8;
-  --expense: #e66767;
+
+  --income:   #2ecf9a;
+  --expense:  #f2706e;
+  --transfer: #98a2ad;
+  --savings:  #9a8bf0;
+  --debt:     #f0a53a;
 }
+
+/* ---- Accent palettes (brand hue): Emerald (default), Ocean, Violet, Sunset -
+   Always-present data-accent attribute picks the hue; dark variants are a
+   touch lighter for contrast on the dark surfaces. --brand-soft/-grad derive. */
+:root,
+:root[data-accent="emerald"] { --brand: #10a37f; --brand-strong: #0c8568; }
+:root[data-theme="dark"],
+:root[data-theme="dark"][data-accent="emerald"] { --brand: #17c199; --brand-strong: #46dcb2; }
+
+:root[data-accent="ocean"]  { --brand: #1f7ae0; --brand-strong: #1462be; }
+:root[data-theme="dark"][data-accent="ocean"]  { --brand: #3f9bff; --brand-strong: #7bb8ff; }
+
+:root[data-accent="violet"] { --brand: #7c5cdb; --brand-strong: #6042c6; }
+:root[data-theme="dark"][data-accent="violet"] { --brand: #9a80f0; --brand-strong: #b7a4f6; }
+
+:root[data-accent="sunset"] { --brand: #e8722a; --brand-strong: #cc5a15; }
+:root[data-theme="dark"][data-accent="sunset"] { --brand: #f5934e; --brand-strong: #f8b483; }
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body {
   margin: 0;
+  font-family: "Plus Jakarta Sans Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   background: var(--page);
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   font-size: 14px;
   line-height: 1.5;
+  transition: background .25s ease, color .25s ease;
 }
-h1, h2, h3, h4, h5 { margin: 0; font-weight: 680; letter-spacing: -0.015em; color: var(--ink); }
+h1, h2, h3, h4, h5 { margin: 0; font-weight: 700; letter-spacing: -0.015em; color: var(--ink); }
 a { color: inherit; text-decoration: none; }
 button { font-family: inherit; }
+
+/* Respect users who prefer less motion — neutralise animations/transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 /* ============================================================================
    App shell layout
@@ -381,8 +417,9 @@ button { font-family: inherit; }
    ============================================================================ */
 .muted { color: var(--muted); }
 .ink2 { color: var(--ink-2); }
-.pos { color: var(--good-ink); }
-.neg { color: var(--critical); }
+.pos { color: var(--income); }
+.neg { color: var(--expense); }
+.transfer { color: var(--transfer); }
 .row { display: flex; align-items: center; gap: 12px; }
 .between { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .wrap { flex-wrap: wrap; }
