@@ -1,0 +1,67 @@
+# Pesawise — full stack in one command:
+#     docker compose up --build
+#
+# Brings up Postgres, the NestJS API (auto-seeds demo personas once) and the
+# Angular app served by nginx. Open http://localhost:8080 and log in with any
+# persona (see the login screen or the README).
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: pesawise-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pesawise}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pesawise}
+      POSTGRES_DB: ${POSTGRES_DB:-pesawise}
+    ports:
+      # Host 5433 -> container 5432 so it never clashes with a local Postgres on 5432
+      - "${DB_HOST_PORT:-5433}:5432"
+    volumes:
+      - pesawise_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pesawise} -d ${POSTGRES_DB:-pesawise}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build:
+      context: ./backend
+    container_name: pesawise-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      DATABASE_USER: ${POSTGRES_USER:-pesawise}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-pesawise}
+      DATABASE_NAME: ${POSTGRES_DB:-pesawise}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      # Frontend is same-origin (via nginx proxy); '*' keeps direct API calls easy too.
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      # Seed the demo personas on first boot (skips itself once data exists).
+      AUTO_SEED: ${AUTO_SEED:-true}
+    expose:
+      - "3000"
+    ports:
+      - "${API_HOST_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: pesawise-web
+    restart: unless-stopped
+    ports:
+      # 8080 by default — 4200 often lands inside a Windows/Hyper-V reserved
+      # port range, which blocks the bind. Override with WEB_HOST_PORT if you like.
+      - "${WEB_HOST_PORT:-8080}:80"
+    depends_on:
+      - backend
+
+volumes:
+  pesawise_pgdata:
