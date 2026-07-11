@@ -2,7 +2,7 @@ import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
 import { Budget, BudgetItem, BudgetTemplate, Category } from '../../core/models';
-import { KesPipe } from '../../core/kes.pipe';
+import { MoneyComponent } from '../../shared/money';
 import { IconPickerComponent } from '../../shared/icon-picker';
 
 interface ItemForm {
@@ -16,7 +16,7 @@ interface ItemForm {
 @Component({
   selector: 'app-budgets',
   standalone: true,
-  imports: [FormsModule, KesPipe, IconPickerComponent],
+  imports: [FormsModule, MoneyComponent, IconPickerComponent],
   template: `
     <div class="page-actions">
       <div>
@@ -45,13 +45,13 @@ interface ItemForm {
               <p class="ink2" style="font-size:13px;margin:12px 0 14px;min-height:38px">{{ t.tagline }}</p>
               <div class="row between" style="font-size:13px">
                 <span class="muted">Planned income</span>
-                <b class="tabnum">{{ t.expectedIncome | kes }}</b>
+                <b><app-money [value]="t.expectedIncome" /></b>
               </div>
               <div class="row between mt-8" style="font-size:13px">
                 <span class="muted">Total budget</span>
-                <b class="tabnum">{{ templateTotal(t) | kes }}</b>
+                <b><app-money [value]="templateTotal(t)" /></b>
               </div>
-              <button class="btn btn-primary btn-block mt-16" (click)="applyTemplate(t)" [disabled]="applying()">
+              <button class="btn btn-primary btn-block mt-16" [style.background]="t.color" [style.borderColor]="t.color" [style.boxShadow]="'0 6px 16px ' + tint(t.color)" (click)="applyTemplate(t)" [disabled]="applying()">
                 <i class="bi bi-magic"></i> Use this plan
               </button>
             </div>
@@ -91,13 +91,13 @@ interface ItemForm {
                 <div class="row between mb-2">
                   <div>
                     <div class="muted" style="font-size:12px;font-weight:650;text-transform:uppercase;letter-spacing:.04em">Spent this month</div>
-                    <div style="font-size:22px;font-weight:750" class="tabnum">
-                      {{ b.totalSpent | kes }} <span class="muted" style="font-size:14px;font-weight:600">/ {{ b.totalLimit | kes }}</span>
+                    <div style="font-size:20px;font-weight:750">
+                      <app-money [value]="b.totalSpent" /> <span class="muted" style="font-size:14px;font-weight:600">/ <app-money [value]="b.totalLimit" /></span>
                     </div>
                   </div>
                   <div class="text-end">
                     <div class="muted" style="font-size:12px">Remaining</div>
-                    <b class="tabnum" [class.neg]="b.totalRemaining < 0" [class.pos]="b.totalRemaining >= 0">{{ b.totalRemaining | kes }}</b>
+                    <b [class.neg]="b.totalRemaining < 0" [class.pos]="b.totalRemaining >= 0"><app-money [value]="b.totalRemaining" /></b>
                   </div>
                 </div>
                 <div class="progress thick" [class.over]="b.totalSpent > b.totalLimit">
@@ -111,8 +111,8 @@ interface ItemForm {
                       <div style="flex:1;min-width:0">
                         <div class="row between" style="gap:8px">
                           <span style="font-weight:600;font-size:13.5px">{{ it.label }}</span>
-                          <span class="tabnum" style="font-size:12.5px" [class.neg]="it.over">
-                            {{ it.spent | kes }} <span class="muted">/ {{ it.limitAmount | kes }}</span>
+                          <span style="font-size:12.5px" [class.neg]="it.over">
+                            <app-money [value]="it.spent" /> <span class="muted">/ <app-money [value]="it.limitAmount" /></span>
                           </span>
                         </div>
                         <div class="progress mt-8" [class.over]="it.over">
@@ -171,7 +171,7 @@ interface ItemForm {
 
             <div class="row between mt-16" style="padding-top:14px;border-top:1px solid var(--border)">
               <span class="muted">Total budgeted</span>
-              <b class="tabnum" style="font-size:16px">{{ formTotal() | kes }}</b>
+              <b style="font-size:16px"><app-money [value]="formTotal()" /></b>
             </div>
           </div>
           <div class="modal-foot">

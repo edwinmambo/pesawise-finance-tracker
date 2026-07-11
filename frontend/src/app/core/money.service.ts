@@ -16,6 +16,16 @@ export class MoneyService {
   private privacy = inject(PrivacyService);
 
   readonly info = computed(() => currencyInfo(this.auth.user()?.currency));
+  readonly symbol = computed(() => this.info().symbol);
+
+  /** Grouped number only — no symbol, no privacy mask (for <app-money>). */
+  formatNumber(value: number | null | undefined, decimals = false): string {
+    if (value === null || value === undefined || isNaN(value)) value = 0;
+    return Math.abs(value).toLocaleString(this.info().locale, {
+      minimumFractionDigits: decimals ? 2 : 0,
+      maximumFractionDigits: decimals ? 2 : 0,
+    });
+  }
 
   format(value: number | null | undefined, decimals = false): string {
     const info = this.info();

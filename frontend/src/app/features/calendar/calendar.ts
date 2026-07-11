@@ -2,12 +2,12 @@ import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
 import { Category, Transaction, TransactionType } from '../../core/models';
-import { KesPipe } from '../../core/kes.pipe';
+import { MoneyComponent } from '../../shared/money';
 import { MoneyService } from '../../core/money.service';
+import { PrefsService } from '../../core/prefs.service';
 import { fmtDate } from '../../core/format';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 interface DayCell {
   key: string;
@@ -27,32 +27,32 @@ function ymd(d: Date): string {
 @Component({
   selector: 'app-calendar',
   standalone: true,
-  imports: [FormsModule, KesPipe],
+  imports: [FormsModule, MoneyComponent],
   template: `
     <div class="page-actions">
       <div><h2 class="section-title">Calendar</h2><div class="muted">Your income &amp; spending, day by day</div></div>
-      <div class="row gap-8">
-        <button class="btn btn-sm" (click)="today()">Today</button>
-        <div class="segmented">
-          <button (click)="shift(-1)" aria-label="Previous month"><i class="bi bi-chevron-left"></i></button>
-          <button style="min-width:130px;pointer-events:none">{{ monthName() }} {{ cursor().y }}</button>
-          <button (click)="shift(1)" aria-label="Next month"><i class="bi bi-chevron-right"></i></button>
-        </div>
-      </div>
+      <button class="btn btn-sm" (click)="today()"><i class="bi bi-calendar-check"></i> Today</button>
     </div>
 
     <!-- Month totals -->
     <div class="grid cols-3" style="margin-bottom:18px">
-      <div class="card stat"><div class="label"><span class="tileicon" style="background:color-mix(in srgb,var(--income) 16%,transparent);color:var(--income)"><i class="bi bi-arrow-down-left"></i></span> Income</div><div class="value pos">{{ monthIncome() | kes }}</div></div>
-      <div class="card stat"><div class="label"><span class="tileicon" style="background:color-mix(in srgb,var(--expense) 16%,transparent);color:var(--expense)"><i class="bi bi-arrow-up-right"></i></span> Spending</div><div class="value neg">{{ monthExpense() | kes }}</div></div>
-      <div class="card stat"><div class="label"><span class="tileicon" style="background:var(--brand-soft);color:var(--brand-strong)"><i class="bi bi-wallet2"></i></span> Net</div><div class="value" [class.pos]="monthNet() >= 0" [class.neg]="monthNet() < 0">{{ monthNet() | kes }}</div></div>
+      <div class="card stat"><div class="label"><span class="tileicon" style="background:color-mix(in srgb,var(--income) 16%,transparent);color:var(--income)"><i class="bi bi-arrow-down-left"></i></span> Income</div><div class="value pos"><app-money [value]="monthIncome()" /></div></div>
+      <div class="card stat"><div class="label"><span class="tileicon" style="background:color-mix(in srgb,var(--expense) 16%,transparent);color:var(--expense)"><i class="bi bi-arrow-up-right"></i></span> Spending</div><div class="value neg"><app-money [value]="monthExpense()" /></div></div>
+      <div class="card stat"><div class="label"><span class="tileicon" style="background:var(--brand-soft);color:var(--brand-strong)"><i class="bi bi-wallet2"></i></span> Net</div><div class="value" [class.pos]="monthNet() >= 0" [class.neg]="monthNet() < 0"><app-money [value]="monthNet()" signed /></div></div>
     </div>
 
     <div class="card card-pad cal">
+      <!-- In-grid month/year header -->
+      <div class="cal-title">
+        <button class="cal-nav" (click)="shift(-1)" aria-label="Previous month"><i class="bi bi-chevron-left"></i></button>
+        <div class="cal-my"><span class="mo">{{ monthName() }}</span> <span class="yr">{{ cursor().y }}</span></div>
+        <button class="cal-nav" (click)="shift(1)" aria-label="Next month"><i class="bi bi-chevron-right"></i></button>
+      </div>
+
       @if (loading()) { <div class="spinner"></div> }
       @else {
         <div class="cal-grid head">
-          @for (w of weekdays; track w) { <div class="cal-wd">{{ w }}</div> }
+          @for (w of weekdays(); track w) { <div class="cal-wd">{{ w }}</div> }
         </div>
         <div class="cal-grid">
           @for (c of cells(); track c.key) {
@@ -86,7 +86,7 @@ function ymd(d: Date): string {
                   <div class="day-row">
                     <span class="txicon" [style.background]="tint(t.category?.color)">{{ t.category?.icon || (t.type === 'INCOME' ? '💰' : '🧾') }}</span>
                     <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13.5px">{{ t.note || t.category?.name || 'Transaction' }}</div><div class="muted" style="font-size:11.5px">{{ t.category?.name || channelLabel(t.channel) }}</div></div>
-                    <b class="tabnum" [class.pos]="t.type === 'INCOME'" [class.neg]="t.type === 'EXPENSE'">{{ t.type === 'INCOME' ? '+' : '−' }}{{ t.amount | kes }}</b>
+                    <app-money [value]="t.amount" signed />
                   </div>
                 }
               </div>
@@ -114,8 +114,13 @@ function ymd(d: Date): string {
     }
   `,
   styles: [`
+    .cal-title { display: flex; align-items: center; justify-content: center; gap: 18px; padding: 2px 0 16px; }
+    .cal-my { font-size: 20px; font-weight: 700; letter-spacing: -.01em; min-width: 190px; text-align: center; }
+    .cal-my .yr { font-family: var(--num-font); color: var(--muted); font-weight: 600; }
+    .cal-nav { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); color: var(--ink); cursor: pointer; display: grid; place-items: center; transition: background .12s, border-color .12s; }
+    .cal-nav:hover { border-color: var(--brand); color: var(--brand-strong); }
     .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-    .cal-grid.head { margin-bottom: 8px; gap: 6px; }
+    .cal-grid.head { margin-bottom: 8px; }
     .cal-wd { text-align: center; font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
     .cal-cell {
       aspect-ratio: 1 / .92; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2);
@@ -126,14 +131,15 @@ function ymd(d: Date): string {
     .cal-cell:hover { border-color: var(--brand); transform: translateY(-1px); box-shadow: var(--shadow); }
     .cal-cell.out { opacity: .4; }
     .cal-cell.today { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand); }
-    .cal-day { font-weight: 650; font-size: 13px; }
-    .cal-amts { margin-top: auto; display: flex; flex-direction: column; gap: 1px; font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.25; }
+    .cal-day { font-weight: 650; font-size: 13px; font-family: var(--num-font); }
+    .cal-amts { margin-top: auto; display: flex; flex-direction: column; gap: 1px; font-size: 10.5px; font-weight: 700; font-family: var(--num-font); font-variant-numeric: tabular-nums; line-height: 1.25; }
     @keyframes cellIn { from { opacity: 0; transform: scale(.96); } }
     @media (max-width: 560px) {
       .cal-grid { gap: 4px; }
       .cal-cell { border-radius: 9px; padding: 4px 5px; aspect-ratio: 1 / 1.05; }
       .cal-amts { font-size: 8.5px; }
       .cal-day { font-size: 11px; }
+      .cal-my { font-size: 17px; min-width: 150px; }
     }
     .day-list { display: flex; flex-direction: column; gap: 10px; }
     .day-row { display: flex; align-items: center; gap: 11px; }
@@ -144,6 +150,7 @@ function ymd(d: Date): string {
 export class CalendarComponent implements OnInit {
   private api = inject(ApiService);
   private money = inject(MoneyService);
+  private prefs = inject(PrefsService);
 
   private now = new Date();
   cursor = signal<{ y: number; m: number }>({ y: this.now.getFullYear(), m: this.now.getMonth() });
@@ -152,7 +159,11 @@ export class CalendarComponent implements OnInit {
   loading = signal(true);
   saving = signal(false);
 
-  weekdays = WEEKDAYS;
+  weekdays = computed(() =>
+    this.prefs.weekStart() === 'sun'
+      ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+      : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+  );
   selected = signal<DayCell | null>(null);
   qa = { type: 'EXPENSE' as TransactionType, amount: null as number | null, categoryId: '', note: '' };
 
@@ -173,7 +184,7 @@ export class CalendarComponent implements OnInit {
     const map = this.byDay();
     const todayKey = ymd(this.now);
     const first = new Date(y, m, 1);
-    const startOffset = (first.getDay() + 6) % 7; // Monday = 0
+    const startOffset = this.prefs.weekStart() === 'sun' ? first.getDay() : (first.getDay() + 6) % 7;
     const daysInMonth = new Date(y, m + 1, 0).getDate();
     const weeks = Math.ceil((startOffset + daysInMonth) / 7);
     const gridStart = new Date(y, m, 1 - startOffset);

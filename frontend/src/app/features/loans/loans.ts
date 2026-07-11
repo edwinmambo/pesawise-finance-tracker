@@ -4,6 +4,7 @@ import { LowerCasePipe } from '@angular/common';
 import { ApiService } from '../../core/api.service';
 import { InterestType, LenderType, Loan } from '../../core/models';
 import { KesPipe } from '../../core/kes.pipe';
+import { MoneyComponent } from '../../shared/money';
 import { fmtDate, todayIso } from '../../core/format';
 import { bankColor as bankColorFor, lenderIcon as lenderIconFor } from '../../core/bank-colors';
 
@@ -20,10 +21,10 @@ interface LoanForm {
 @Component({
   selector: 'app-loans',
   standalone: true,
-  imports: [FormsModule, LowerCasePipe, KesPipe],
+  imports: [FormsModule, LowerCasePipe, KesPipe, MoneyComponent],
   template: `
     <div class="page-actions">
-      <div><h2 class="section-title">Loans</h2><div class="muted">Outstanding {{ totalOutstanding() | kes }} across {{ activeCount() }} active loans</div></div>
+      <div><h2 class="section-title">Loans</h2><div class="muted">Outstanding <app-money [value]="totalOutstanding()" /> across {{ activeCount() }} active loans</div></div>
       <button class="btn btn-primary" (click)="openNew()"><i class="bi bi-plus-lg"></i> Add loan</button>
     </div>
 
@@ -45,7 +46,7 @@ interface LoanForm {
 
             <div class="mt-16">
               <div class="muted" style="font-size:12px">Outstanding balance</div>
-              <div style="font-size:24px;font-weight:720;letter-spacing:-.02em" class="neg">{{ l.outstanding | kes }}</div>
+              <div style="font-size:24px;font-weight:720;letter-spacing:-.02em" class="neg"><app-money [value]="l.outstanding" /></div>
             </div>
 
             <div class="progress mt-8"><span [style.width.%]="l.progress * 100" [style.background]="bankColor(l)"></span></div>

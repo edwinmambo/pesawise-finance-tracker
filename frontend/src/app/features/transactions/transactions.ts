@@ -2,7 +2,7 @@ import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
 import { Account, Category, Channel, Transaction, TransactionType } from '../../core/models';
-import { KesPipe } from '../../core/kes.pipe';
+import { MoneyComponent } from '../../shared/money';
 import { fmtDate, todayIso } from '../../core/format';
 
 const CHANNELS: Channel[] = ['MPESA', 'BANK', 'CASH', 'SACCO'];
@@ -21,7 +21,7 @@ interface TxForm {
 @Component({
   selector: 'app-transactions',
   standalone: true,
-  imports: [FormsModule, KesPipe],
+  imports: [FormsModule, MoneyComponent],
   template: `
     <div class="page-actions">
       <div>
@@ -70,8 +70,8 @@ interface TxForm {
                   <td class="muted">{{ t.category?.name || '—' }}</td>
                   <td><span class="badge">{{ channelLabel(t.channel) }}</span></td>
                   <td class="muted" style="font-size:12.5px">{{ date(t.date) }}</td>
-                  <td class="num" style="font-weight:650" [class.pos]="t.type === 'INCOME'" [class.neg]="t.type === 'EXPENSE'">
-                    {{ t.type === 'INCOME' ? '+' : '−' }}{{ t.amount | kes }}
+                  <td class="num" style="font-weight:650">
+                    <app-money [value]="t.amount" signed />
                   </td>
                   <td style="width:80px" class="num">
                     <button class="btn btn-ghost btn-sm btn-icon" (click)="openEdit(t)" title="Edit"><i class="bi bi-pencil"></i></button>
@@ -92,9 +92,7 @@ interface TxForm {
                 <span class="tx-title">{{ t.note || t.category?.name || 'Transaction' }}</span>
                 <span class="tx-sub">{{ t.category?.name || channelLabel(t.channel) }} · {{ date(t.date) }}</span>
               </span>
-              <span class="tx-amt tabnum" [class.pos]="t.type === 'INCOME'" [class.neg]="t.type === 'EXPENSE'">
-                {{ t.type === 'INCOME' ? '+' : '−' }}{{ t.amount | kes }}
-              </span>
+              <app-money class="tx-amt" [value]="t.amount" signed />
             </button>
           }
         </div>

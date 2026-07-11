@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { ThemeService, ACCENTS } from '../../core/theme.service';
+import { PrefsService } from '../../core/prefs.service';
 import { CURRENCIES } from '../../core/currency';
 import { Account, AccountType, Category, CategoryKind } from '../../core/models';
 import { KesPipe } from '../../core/kes.pipe';
@@ -111,6 +112,13 @@ const ACCOUNT_ICON: Record<AccountType, string> = { MPESA: '📱', BANK: '🏦',
             </div>
           </div>
 
+          <div class="field"><label>First day of week</label>
+            <div class="segmented">
+              <button [class.active]="prefs.weekStart() === 'mon'" (click)="prefs.setWeekStart('mon')">Monday</button>
+              <button [class.active]="prefs.weekStart() === 'sun'" (click)="prefs.setWeekStart('sun')">Sunday</button>
+            </div>
+          </div>
+
           <div class="mt-24"><button class="btn btn-danger" (click)="auth.logout()"><i class="bi bi-box-arrow-left"></i> Log out</button></div>
         </div>
       }
@@ -179,6 +187,7 @@ export class SettingsComponent implements OnInit {
   private api = inject(ApiService);
   auth = inject(AuthService);
   theme = inject(ThemeService);
+  prefs = inject(PrefsService);
 
   tab = signal<'accounts' | 'categories' | 'profile'>('accounts');
   accounts = signal<Account[]>([]);
