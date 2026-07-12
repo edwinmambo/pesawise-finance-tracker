@@ -3,7 +3,11 @@
 **Money, wisely tracked.** A beautiful, mobile-friendly personal-finance tracker built for
 the Kenyan market — income, expenses, loans, savings **and budgets**, all in KES.
 
+[![Live Demo](https://img.shields.io/badge/▶_Live_Demo-pesawise-10a37f?style=for-the-badge)](https://pesawise-7owg.onrender.com/)
+
 ![Angular](https://img.shields.io/badge/Angular-21-dd0031) ![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3-7952b3) ![NestJS](https://img.shields.io/badge/NestJS-11-e0234e) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791) ![Docker](https://img.shields.io/badge/Docker-one--command-2496ed)
+
+> **▶ Try it live → https://pesawise-7owg.onrender.com/** — log in with any persona (e.g. `faith@pesawise.co.ke` / `pesa1234`). It runs on a free tier, so the first load after it's been idle can take **~30–60s** to wake up.
 
 ---
 

@@ -1,5 +1,7 @@
 # Deploying Pesawise for free 🚀
 
+> **Live now → https://pesawise-7owg.onrender.com/**
+
 This hosts the whole app on **free tiers**: one **Render** web service (the API also
 serves the web app) + a free **Neon** Postgres database. Pushes to `main`
 auto-deploy a **preview**; the **production** deploy waits for **your approval**.
