@@ -6,6 +6,8 @@ import { TransactionType } from '../common/enums';
 import { AccountsService } from '../accounts/accounts.service';
 import { LoansService } from '../loans/loans.service';
 import { SavingsService } from '../savings/savings.service';
+import { UsersService } from '../users/users.service';
+import { FxService } from '../common/fx.service';
 
 @Injectable()
 export class DashboardService {
@@ -15,6 +17,8 @@ export class DashboardService {
     private readonly accountsService: AccountsService,
     private readonly loansService: LoansService,
     private readonly savingsService: SavingsService,
+    private readonly usersService: UsersService,
+    private readonly fx: FxService,
   ) {}
 
   async summary(userId: string) {
@@ -22,8 +26,9 @@ export class DashboardService {
     const monthStart = ymd(new Date(now.getFullYear(), now.getMonth(), 1));
     const seriesStart = ymd(new Date(now.getFullYear(), now.getMonth() - 5, 1));
 
-    const [accounts, loans, savingsGoals, monthlySeries, categoryBreakdown, recentTransactions] =
+    const [user, accounts, loans, savingsGoals, monthlySeries, categoryBreakdown, recentTransactions] =
       await Promise.all([
+        this.usersService.findById(userId),
         this.accountsService.findAll(userId),
         this.loansService.findAll(userId),
         this.savingsService.findAll(userId),
@@ -32,24 +37,30 @@ export class DashboardService {
         this.recent(userId),
       ]);
 
+    // Everything is reported in the user's display currency. Account balances
+    // convert from each account's native currency; the KES-denominated series,
+    // savings and loans convert from KES.
+    const display = user.currency || 'KES';
+    const k2d = (kes: number) => this.fx.convert(kes, 'KES', display);
+
     const totalBalance = round2(
-      accounts.reduce((s, a) => s + a.currentBalance, 0),
+      accounts.reduce((s, a) => s + this.fx.convert(a.currentBalance, a.currency, display), 0),
     );
-    const totalSaved = round2(
-      savingsGoals.reduce((s, g) => s + g.savedAmount, 0),
-    );
-    const totalDebt = round2(
-      loans
-        .filter((l) => l.status === 'ACTIVE')
-        .reduce((s, l) => s + l.outstanding, 0),
+    const totalSaved = k2d(savingsGoals.reduce((s, g) => s + g.savedAmount, 0));
+    const totalDebt = k2d(
+      loans.filter((l) => l.status === 'ACTIVE').reduce((s, l) => s + l.outstanding, 0),
     );
 
-    const thisMonth = monthlySeries[monthlySeries.length - 1] ?? {
-      income: 0,
-      expense: 0,
-    };
+    const displaySeries = monthlySeries.map((m) => ({
+      month: m.month,
+      income: k2d(m.income),
+      expense: k2d(m.expense),
+    }));
+    const displayCategories = categoryBreakdown.map((c) => ({ ...c, total: k2d(c.total) }));
+    const thisMonth = displaySeries[displaySeries.length - 1] ?? { income: 0, expense: 0 };
 
     return {
+      currency: display,
       totals: {
         totalBalance,
         totalSaved,
@@ -59,8 +70,8 @@ export class DashboardService {
         monthExpense: thisMonth.expense,
         monthNet: round2(thisMonth.income - thisMonth.expense),
       },
-      monthlySeries,
-      categoryBreakdown,
+      monthlySeries: displaySeries,
+      categoryBreakdown: displayCategories,
       accounts,
       savingsGoals,
       loans,

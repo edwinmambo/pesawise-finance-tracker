@@ -1,9 +1,10 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { ThemeService, ACCENTS } from '../../core/theme.service';
 import { PrivacyService } from '../../core/privacy.service';
+import { I18nService } from '../../core/i18n.service';
 
 interface NavLink { path: string; label: string; icon: string; exact?: boolean; }
 
@@ -17,7 +18,7 @@ interface NavLink { path: string; label: string; icon: string; exact?: boolean; 
       <aside class="sidebar desk">
         <div class="brand"><span class="logo">₭</span> Pesawise</div>
         <nav class="side-nav">
-          @for (l of links; track l.path) {
+          @for (l of links(); track l.path) {
             <a [routerLink]="l.path" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: !!l.exact }">
               <i class="bi" [class]="'bi-' + l.icon"></i> {{ l.label }}
             </a>
@@ -95,12 +96,20 @@ interface NavLink { path: string; label: string; icon: string; exact?: boolean; 
             </div>
           </div>
 
+          <div class="pm-section">
+            <div class="pm-label">{{ i18n.t('common.language') }}</div>
+            <div class="segmented" style="width:100%">
+              <button style="flex:1" [class.active]="i18n.lang() === 'en'" (click)="i18n.setLang('en')">🇬🇧 English</button>
+              <button style="flex:1" [class.active]="i18n.lang() === 'sw'" (click)="i18n.setLang('sw')">🇰🇪 Kiswahili</button>
+            </div>
+          </div>
+
           <button class="pm-item" (click)="privacy.toggle()">
             <i class="bi" [class]="privacy.hidden() ? 'bi-eye' : 'bi-eye-slash'"></i>
             {{ privacy.hidden() ? 'Show balances' : 'Hide balances' }}
           </button>
-          <a class="pm-item" routerLink="/settings"><i class="bi bi-gear"></i> Settings</a>
-          <button class="pm-item danger" (click)="auth.logout()"><i class="bi bi-box-arrow-left"></i> Log out</button>
+          <a class="pm-item" routerLink="/settings"><i class="bi bi-gear"></i> {{ i18n.t('nav.settings') }}</a>
+          <button class="pm-item danger" (click)="auth.logout()"><i class="bi bi-box-arrow-left"></i> {{ i18n.t('action.logout') }}</button>
         </div>
       </div>
     </ng-template>
@@ -120,7 +129,7 @@ interface NavLink { path: string; label: string; icon: string; exact?: boolean; 
           </div>
         </div>
         <nav class="side-nav">
-          @for (l of links; track l.path) {
+          @for (l of links(); track l.path) {
             <a [routerLink]="l.path" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: !!l.exact }" data-bs-dismiss="offcanvas">
               <i class="bi" [class]="'bi-' + l.icon"></i> {{ l.label }}
             </a>
@@ -159,18 +168,26 @@ export class ShellComponent {
   auth = inject(AuthService);
   theme = inject(ThemeService);
   privacy = inject(PrivacyService);
+  i18n = inject(I18nService);
   accents = ACCENTS;
 
-  links: NavLink[] = [
-    { path: '/', label: 'Dashboard', icon: 'grid-1x2-fill', exact: true },
-    { path: '/transactions', label: 'Transactions', icon: 'arrow-left-right' },
-    { path: '/budgets', label: 'Budgets', icon: 'pie-chart-fill' },
-    { path: '/calendar', label: 'Calendar', icon: 'calendar3' },
-    { path: '/loans', label: 'Loans', icon: 'bank2' },
-    { path: '/savings', label: 'Savings', icon: 'piggy-bank-fill' },
-    { path: '/reports', label: 'Reports', icon: 'graph-up-arrow' },
-    { path: '/settings', label: 'Settings', icon: 'gear-fill' },
+  private baseLinks: (Omit<NavLink, 'label'> & { key: string })[] = [
+    { path: '/', key: 'nav.dashboard', icon: 'grid-1x2-fill', exact: true },
+    { path: '/transactions', key: 'nav.transactions', icon: 'arrow-left-right' },
+    { path: '/budgets', key: 'nav.budgets', icon: 'pie-chart-fill' },
+    { path: '/calendar', key: 'nav.calendar', icon: 'calendar3' },
+    { path: '/loans', key: 'nav.loans', icon: 'bank2' },
+    { path: '/savings', key: 'nav.savings', icon: 'piggy-bank-fill' },
+    { path: '/reports', key: 'nav.reports', icon: 'graph-up-arrow' },
+    { path: '/import', key: 'nav.import', icon: 'cloud-arrow-down-fill' },
+    { path: '/recurring', key: 'nav.recurring', icon: 'arrow-repeat' },
+    { path: '/settings', key: 'nav.settings', icon: 'gear-fill' },
   ];
+
+  // Reactive to the language signal — flips EN⇄SW instantly.
+  links = computed<NavLink[]>(() =>
+    this.baseLinks.map((l) => ({ ...l, label: this.i18n.t(l.key) })),
+  );
 
   firstName(): string {
     return this.auth.user()?.name?.split(' ')[0] ?? 'there';

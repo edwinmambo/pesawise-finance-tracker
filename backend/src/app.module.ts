@@ -1,8 +1,11 @@
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -13,6 +16,10 @@ import { LoansModule } from './loans/loans.module';
 import { SavingsModule } from './savings/savings.module';
 import { BudgetsModule } from './budgets/budgets.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { ReportsModule } from './reports/reports.module';
+import { ImportsModule } from './imports/imports.module';
+import { RecurringModule } from './recurring/recurring.module';
+import { FxModule } from './common/fx.module';
 
 // In the single-service production image the built Angular app is copied to
 // ../client and served by this API. In local dev it isn't present, so we skip
@@ -30,6 +37,10 @@ const staticImports = existsSync(clientPath)
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
+    // Global rate limit (in-memory; swap for Redis storage if scaled >1 instance).
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 120 }]),
+    FxModule,
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
@@ -38,8 +49,13 @@ const staticImports = existsSync(clientPath)
         const base = {
           type: 'postgres' as const,
           autoLoadEntities: true,
-          // Dev convenience: auto-create schema. Swap for migrations before scale.
-          synchronize: true,
+          // Schema is owned by migrations now (see database/migrations). They are
+          // applied by docker-entrypoint.sh before the app boots; the app itself
+          // never mutates the schema.
+          synchronize: false,
+          migrations: [join(__dirname, 'database', 'migrations', '*.{ts,js}')],
+          migrationsTableName: 'migrations',
+          migrationsRun: false,
         };
         if (url) {
           return { ...base, url, ssl: { rejectUnauthorized: false } };
@@ -64,6 +80,10 @@ const staticImports = existsSync(clientPath)
     SavingsModule,
     BudgetsModule,
     DashboardModule,
+    ReportsModule,
+    ImportsModule,
+    RecurringModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

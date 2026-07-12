@@ -45,6 +45,11 @@ export class Account {
   @Column({ default: '#2563eb' })
   color: string;
 
+  // Per-account currency. Dormant until Phase 4 (FX): every account is KES today
+  // and the app still formats by the user's display currency only.
+  @Column({ default: 'KES' })
+  currency: string;
+
   @CreateDateColumn()
   createdAt: Date;
 }

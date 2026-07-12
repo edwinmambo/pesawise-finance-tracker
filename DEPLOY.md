@@ -35,11 +35,32 @@ Runtime **Docker** → add env vars `DATABASE_URL`, `JWT_SECRET`, `NODE_ENV=prod
 
 ## 3. First deploy
 - Render builds the Docker image (~3–5 min) and starts the service.
-- On first boot the API creates the schema and **seeds the demo personas** once.
+- On first boot the entrypoint **runs database migrations** (which own the
+  schema), then **seeds the demo personas** once.
 - Open the service URL (e.g. `https://pesawise.onrender.com`) and log in with any
   persona — e.g. **faith@pesawise.co.ke / pesa1234** (see the login screen).
 
 That's it — your site is live. ✅
+
+### Migrating a database that predates migrations
+Fresh databases just work — the migrations create everything. But a database
+that was **already created by the old `synchronize` mode** (e.g. the existing
+live demo) already has the tables, so the first `InitialSchema` migration would
+collide. Reconcile it **once**, either way:
+
+- **Simplest (demo data is disposable):** in Neon, drop the tables (or reset the
+  branch). The next deploy migrates from scratch and `AUTO_SEED` re-seeds.
+- **Preserve the data (fake-apply the baseline):** run this against the DB once,
+  so only the *new* migration executes on the next deploy:
+  ```sql
+  CREATE TABLE IF NOT EXISTS migrations
+    (id SERIAL PRIMARY KEY, "timestamp" bigint NOT NULL, name varchar NOT NULL);
+  INSERT INTO migrations("timestamp", name)
+    VALUES (1783870148522, 'InitialSchema1783870148522');
+  ```
+  The entrypoint tolerates a failed migration run (it logs and still boots), so
+  an un-reconciled service stays up — but its schema won't gain the new columns
+  until you do one of the above.
 
 ---
 

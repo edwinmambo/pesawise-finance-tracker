@@ -1,13 +1,17 @@
 import {
+  IsDateString,
   IsEnum,
   IsHexColor,
   IsNumber,
   IsOptional,
+  IsPositive,
   IsString,
+  IsUUID,
+  Length,
   MaxLength,
   Min,
 } from 'class-validator';
-import { AccountType } from '../../common/enums';
+import { AccountType, Channel } from '../../common/enums';
 
 export class CreateAccountDto {
   @IsString()
@@ -21,6 +25,11 @@ export class CreateAccountDto {
   @IsNumber()
   @Min(0)
   openingBalance?: number;
+
+  @IsOptional()
+  @IsString()
+  @Length(3, 3)
+  currency?: string;
 
   @IsOptional()
   @IsString()
@@ -48,10 +57,39 @@ export class UpdateAccountDto {
 
   @IsOptional()
   @IsString()
+  @Length(3, 3)
+  currency?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(60)
   institution?: string;
 
   @IsOptional()
   @IsHexColor()
   color?: string;
+}
+
+export class TransferDto {
+  @IsUUID()
+  fromAccountId: string;
+
+  @IsUUID()
+  toAccountId: string;
+
+  @IsNumber()
+  @IsPositive()
+  amount: number;
+
+  @IsDateString()
+  date: string;
+
+  @IsOptional()
+  @IsEnum(Channel)
+  channel?: Channel;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  note?: string;
 }

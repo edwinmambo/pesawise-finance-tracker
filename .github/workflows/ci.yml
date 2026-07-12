@@ -31,9 +31,65 @@ jobs:
           npm install --no-audit --no-fund
           npm run build
 
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pesawise
+          POSTGRES_PASSWORD: pesawise
+          POSTGRES_DB: pesawise
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pesawise"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: API — unit tests
+        working-directory: backend
+        run: |
+          npm install --no-audit --no-fund
+          npm test
+
+      - name: API — run migrations (test DB)
+        working-directory: backend
+        env:
+          DATABASE_HOST: localhost
+          DATABASE_PORT: 5432
+          DATABASE_USER: pesawise
+          DATABASE_PASSWORD: pesawise
+          DATABASE_NAME: pesawise
+        run: npm run migration:run
+
+      - name: API — e2e tests (against Postgres)
+        working-directory: backend
+        env:
+          DATABASE_HOST: localhost
+          DATABASE_PORT: 5432
+          DATABASE_USER: pesawise
+          DATABASE_PASSWORD: pesawise
+          DATABASE_NAME: pesawise
+          JWT_SECRET: ci-test-secret
+        run: npm run test:e2e
+
+      - name: Web — unit tests (Vitest)
+        working-directory: frontend
+        run: |
+          npm install --no-audit --no-fund
+          npm test
+
   deploy-production:
     name: Deploy to production (manual approval)
-    needs: build
+    needs: [build, test]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     # Add "Required reviewers" to this environment (repo Settings → Environments)

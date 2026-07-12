@@ -24,6 +24,8 @@ export const routes: Routes = [
       { path: 'loans', loadComponent: () => import('./features/loans/loans').then((m) => m.LoansComponent) },
       { path: 'savings', loadComponent: () => import('./features/savings/savings').then((m) => m.SavingsComponent) },
       { path: 'reports', loadComponent: () => import('./features/reports/reports').then((m) => m.ReportsComponent) },
+      { path: 'import', loadComponent: () => import('./features/import/import').then((m) => m.ImportComponent) },
+      { path: 'recurring', loadComponent: () => import('./features/recurring/recurring').then((m) => m.RecurringComponent) },
       { path: 'settings', loadComponent: () => import('./features/settings/settings').then((m) => m.SettingsComponent) },
     ],
   },

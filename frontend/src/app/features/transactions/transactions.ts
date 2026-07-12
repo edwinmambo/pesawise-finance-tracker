@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
 import { Account, Category, Channel, Transaction, TransactionType } from '../../core/models';
 import { MoneyComponent } from '../../shared/money';
+import { FocusTrapDirective } from '../../shared/focus-trap.directive';
 import { fmtDate, todayIso } from '../../core/format';
 
 const CHANNELS: Channel[] = ['MPESA', 'BANK', 'CASH', 'SACCO'];
@@ -21,14 +22,17 @@ interface TxForm {
 @Component({
   selector: 'app-transactions',
   standalone: true,
-  imports: [FormsModule, MoneyComponent],
+  imports: [FormsModule, MoneyComponent, FocusTrapDirective],
   template: `
     <div class="page-actions">
       <div>
         <h2 class="section-title">Transactions</h2>
         <div class="muted">{{ filtered().length }} of {{ all().length }} shown</div>
       </div>
-      <button class="btn btn-primary" (click)="openNew()"><i class="bi bi-plus-lg"></i> Add transaction</button>
+      <div class="row gap-8">
+        <button class="btn btn-ghost" (click)="openTransfer()"><i class="bi bi-arrow-left-right"></i> Transfer</button>
+        <button class="btn btn-primary" (click)="openNew()"><i class="bi bi-plus-lg"></i> Add transaction</button>
+      </div>
     </div>
 
     <!-- Filters -->
@@ -62,7 +66,7 @@ interface TxForm {
             <tbody>
               @for (t of filtered(); track t.id) {
                 <tr>
-                  <td style="width:44px"><div class="txicon" [style.background]="tint(t.category?.color)">{{ t.category?.icon || (t.type === 'INCOME' ? '💰' : '🧾') }}</div></td>
+                  <td style="width:44px"><div class="txicon" [style.background]="tint(t.category?.color)">{{ t.category?.icon || (t.type.startsWith('TRANSFER') ? '🔁' : t.type === 'INCOME' ? '💰' : '🧾') }}</div></td>
                   <td>
                     <div style="font-weight:600">{{ t.note || t.category?.name || 'Transaction' }}</div>
                     @if (t.reference) { <div class="muted" style="font-size:11.5px">Ref: {{ t.reference }}</div> }
@@ -87,7 +91,7 @@ interface TxForm {
         <div class="tx-list d-md-none">
           @for (t of filtered(); track t.id) {
             <button type="button" class="tx-card" (click)="openEdit(t)">
-              <span class="txicon" [style.background]="tint(t.category?.color)">{{ t.category?.icon || (t.type === 'INCOME' ? '💰' : '🧾') }}</span>
+              <span class="txicon" [style.background]="tint(t.category?.color)">{{ t.category?.icon || (t.type.startsWith('TRANSFER') ? '🔁' : t.type === 'INCOME' ? '💰' : '🧾') }}</span>
               <span class="tx-main">
                 <span class="tx-title">{{ t.note || t.category?.name || 'Transaction' }}</span>
                 <span class="tx-sub">{{ t.category?.name || channelLabel(t.channel) }} · {{ date(t.date) }}</span>
@@ -104,7 +108,7 @@ interface TxForm {
     <!-- Modal -->
     @if (showModal()) {
       <div class="overlay" (click)="close($event)">
-        <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal" role="dialog" aria-modal="true" aria-label="Add or edit transaction" appFocusTrap (click)="$event.stopPropagation()">
           <div class="modal-head"><h3>{{ editingId() ? 'Edit' : 'Add' }} transaction</h3><button class="btn btn-icon btn-ghost" (click)="showModal.set(false)"><i class="bi bi-x-lg"></i></button></div>
           <div class="modal-body">
             <div class="row gap-8" style="margin-bottom:16px">
@@ -144,6 +148,42 @@ interface TxForm {
             <div style="flex:1"></div>
             <button class="btn btn-ghost" (click)="showModal.set(false)">Cancel</button>
             <button class="btn btn-primary" (click)="save()" [disabled]="!form.amount || saving()">{{ saving() ? 'Saving…' : 'Save' }}</button>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Transfer modal -->
+    @if (showTransfer()) {
+      <div class="overlay" (click)="showTransfer.set(false)">
+        <div class="modal" role="dialog" aria-modal="true" aria-label="Transfer between accounts" appFocusTrap (click)="$event.stopPropagation()">
+          <div class="modal-head"><h3>Transfer between accounts</h3><button class="btn btn-icon btn-ghost" (click)="showTransfer.set(false)"><i class="bi bi-x-lg"></i></button></div>
+          <div class="modal-body">
+            <div class="form-row">
+              <div class="field"><label>From</label>
+                <select class="input" [(ngModel)]="xfer.fromAccountId">
+                  <option value="">— Select —</option>
+                  @for (a of accounts(); track a.id) { <option [value]="a.id">{{ a.name }} ({{ a.currency }})</option> }
+                </select>
+              </div>
+              <div class="field"><label>To</label>
+                <select class="input" [(ngModel)]="xfer.toAccountId">
+                  <option value="">— Select —</option>
+                  @for (a of accounts(); track a.id) { <option [value]="a.id">{{ a.name }} ({{ a.currency }})</option> }
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field"><label>Amount (from account's currency)</label><input class="input" type="number" min="0" [(ngModel)]="xfer.amount" placeholder="0" /></div>
+              <div class="field"><label>Date</label><input class="input" type="date" [(ngModel)]="xfer.date" /></div>
+            </div>
+            <div class="field"><label>Note (optional)</label><input class="input" [(ngModel)]="xfer.note" placeholder="e.g. Move to savings" /></div>
+            @if (xferCrossCurrency()) { <div class="muted" style="font-size:12px">Cross-currency transfer — the destination amount is converted at the current rate.</div> }
+          </div>
+          <div class="modal-foot">
+            <div style="flex:1"></div>
+            <button class="btn btn-ghost" (click)="showTransfer.set(false)">Cancel</button>
+            <button class="btn btn-primary" (click)="doTransfer()" [disabled]="!xferValid() || transferring()">{{ transferring() ? 'Transferring…' : 'Transfer' }}</button>
           </div>
         </div>
       </div>
@@ -190,6 +230,10 @@ export class TransactionsComponent implements OnInit {
   saving = signal(false);
   editingId = signal<string | null>(null);
   form: TxForm = this.blank();
+
+  showTransfer = signal(false);
+  transferring = signal(false);
+  xfer = { fromAccountId: '', toAccountId: '', amount: null as number | null, date: todayIso(), note: '' };
 
   formCategories = computed(() => this.categories().filter((c) => c.kind === this.form.type));
 
@@ -269,6 +313,42 @@ export class TransactionsComponent implements OnInit {
     const id = this.editingId();
     if (!id || !confirm('Delete this transaction?')) return;
     this.api.deleteTransaction(id).subscribe(() => { this.showModal.set(false); this.reload(); });
+  }
+
+  // ---- transfer ----
+  openTransfer(): void {
+    this.xfer = { fromAccountId: '', toAccountId: '', amount: null, date: todayIso(), note: '' };
+    this.showTransfer.set(true);
+  }
+  xferValid(): boolean {
+    const x = this.xfer;
+    return !!x.fromAccountId && !!x.toAccountId && x.fromAccountId !== x.toAccountId && !!x.amount && x.amount > 0;
+  }
+  xferCrossCurrency(): boolean {
+    const from = this.accounts().find((a) => a.id === this.xfer.fromAccountId);
+    const to = this.accounts().find((a) => a.id === this.xfer.toAccountId);
+    return !!from && !!to && from.currency !== to.currency;
+  }
+  doTransfer(): void {
+    if (!this.xferValid()) return;
+    this.transferring.set(true);
+    this.api
+      .transfer({
+        fromAccountId: this.xfer.fromAccountId,
+        toAccountId: this.xfer.toAccountId,
+        amount: Number(this.xfer.amount),
+        date: this.xfer.date,
+        note: this.xfer.note || undefined,
+      })
+      .subscribe({
+        next: () => {
+          this.transferring.set(false);
+          this.showTransfer.set(false);
+          this.api.accounts().subscribe((a) => this.accounts.set(a));
+          this.reload();
+        },
+        error: () => this.transferring.set(false),
+      });
   }
 
   channelLabel(ch: string): string { return ch === 'MPESA' ? 'M-Pesa' : ch.charAt(0) + ch.slice(1).toLowerCase(); }

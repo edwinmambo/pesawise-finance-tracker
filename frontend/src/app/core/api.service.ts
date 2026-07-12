@@ -8,9 +8,16 @@ import {
   BudgetTemplate,
   Category,
   DashboardSummary,
+  ImportBatch,
+  ImportPreview,
+  ImportSource,
   Loan,
+  RecurringRule,
+  ReportData,
+  ReportPeriod,
   SavingsGoal,
   Transaction,
+  UpcomingOccurrence,
 } from './models';
 
 @Injectable({ providedIn: 'root' })
@@ -21,6 +28,17 @@ export class ApiService {
   // Dashboard
   dashboard(): Observable<DashboardSummary> {
     return this.http.get<DashboardSummary>(`${this.base}/dashboard/summary`);
+  }
+
+  // Reports (server-side aggregation + exports)
+  report(period: ReportPeriod): Observable<ReportData> {
+    return this.http.get<ReportData>(`${this.base}/reports`, { params: { period } });
+  }
+  downloadReport(period: ReportPeriod, format: 'csv' | 'pdf'): Observable<Blob> {
+    return this.http.get(`${this.base}/reports`, {
+      params: { period, format },
+      responseType: 'blob',
+    });
   }
 
   // Accounts
@@ -35,6 +53,16 @@ export class ApiService {
   }
   deleteAccount(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/accounts/${id}`);
+  }
+  transfer(body: {
+    fromAccountId: string;
+    toAccountId: string;
+    amount: number;
+    date: string;
+    channel?: string;
+    note?: string;
+  }): Observable<unknown> {
+    return this.http.post(`${this.base}/accounts/transfer`, body);
   }
 
   // Categories
@@ -133,5 +161,33 @@ export class ApiService {
   }
   deleteBudget(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/budgets/${id}`);
+  }
+
+  // Imports (M-Pesa)
+  previewImport(source: ImportSource, raw: string): Observable<ImportPreview> {
+    return this.http.post<ImportPreview>(`${this.base}/imports`, { source, raw });
+  }
+  commitImport(id: string, rowIds?: string[]): Observable<ImportBatch> {
+    return this.http.post<ImportBatch>(`${this.base}/imports/${id}/commit`, rowIds ? { rowIds } : {});
+  }
+
+  // Recurring
+  recurring(): Observable<RecurringRule[]> {
+    return this.http.get<RecurringRule[]>(`${this.base}/recurring`);
+  }
+  upcomingRecurring(days = 30): Observable<UpcomingOccurrence[]> {
+    return this.http.get<UpcomingOccurrence[]>(`${this.base}/recurring/upcoming`, { params: { days: String(days) } });
+  }
+  createRecurring(body: Partial<RecurringRule> & { startDate?: string }): Observable<RecurringRule> {
+    return this.http.post<RecurringRule>(`${this.base}/recurring`, body);
+  }
+  updateRecurring(id: string, body: Partial<RecurringRule>): Observable<RecurringRule> {
+    return this.http.patch<RecurringRule>(`${this.base}/recurring/${id}`, body);
+  }
+  deleteRecurring(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/recurring/${id}`);
+  }
+  runRecurring(): Observable<{ created: number }> {
+    return this.http.post<{ created: number }>(`${this.base}/recurring/run`, {});
   }
 }
