@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
 import { Account, Category, Channel, Transaction, TransactionType } from '../../core/models';
 import { MoneyComponent } from '../../shared/money';
+import { FocusTrapDirective } from '../../shared/focus-trap.directive';
 import { fmtDate, todayIso } from '../../core/format';
 
 const CHANNELS: Channel[] = ['MPESA', 'BANK', 'CASH', 'SACCO'];
@@ -21,7 +22,7 @@ interface TxForm {
 @Component({
   selector: 'app-transactions',
   standalone: true,
-  imports: [FormsModule, MoneyComponent],
+  imports: [FormsModule, MoneyComponent, FocusTrapDirective],
   template: `
     <div class="page-actions">
       <div>
@@ -107,7 +108,7 @@ interface TxForm {
     <!-- Modal -->
     @if (showModal()) {
       <div class="overlay" (click)="close($event)">
-        <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal" role="dialog" aria-modal="true" aria-label="Add or edit transaction" appFocusTrap (click)="$event.stopPropagation()">
           <div class="modal-head"><h3>{{ editingId() ? 'Edit' : 'Add' }} transaction</h3><button class="btn btn-icon btn-ghost" (click)="showModal.set(false)"><i class="bi bi-x-lg"></i></button></div>
           <div class="modal-body">
             <div class="row gap-8" style="margin-bottom:16px">
@@ -155,7 +156,7 @@ interface TxForm {
     <!-- Transfer modal -->
     @if (showTransfer()) {
       <div class="overlay" (click)="showTransfer.set(false)">
-        <div class="modal" (click)="$event.stopPropagation()">
+        <div class="modal" role="dialog" aria-modal="true" aria-label="Transfer between accounts" appFocusTrap (click)="$event.stopPropagation()">
           <div class="modal-head"><h3>Transfer between accounts</h3><button class="btn btn-icon btn-ghost" (click)="showTransfer.set(false)"><i class="bi bi-x-lg"></i></button></div>
           <div class="modal-body">
             <div class="form-row">

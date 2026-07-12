@@ -1,9 +1,11 @@
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -36,6 +38,8 @@ const staticImports = existsSync(clientPath)
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    // Global rate limit (in-memory; swap for Redis storage if scaled >1 instance).
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 120 }]),
     FxModule,
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
@@ -80,5 +84,6 @@ const staticImports = existsSync(clientPath)
     ImportsModule,
     RecurringModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

@@ -1,0 +1,19 @@
+{
+  "name": "Pesawise — Money, wisely tracked",
+  "short_name": "Pesawise",
+  "description": "A personal finance tracker for the Kenyan market.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#12141c",
+  "theme_color": "#10a37f",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

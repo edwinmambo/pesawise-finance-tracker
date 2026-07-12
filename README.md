@@ -81,9 +81,11 @@ goals and an applied budget. **Tap a card on the login screen** — or use these
 - 🔀 **Transfers** — move money between accounts as an atomic linked pair; excluded from income/expense so net worth stays correct
 - 💱 **Multi-currency** — per-account currencies with real **FX conversion** (net worth aggregates into your display currency; cross-currency transfers convert at the current rate) across KES, USD, EUR, GBP, TZS, UGX, ZAR, NGN
 - 🙈 **Privacy** — balances hidden by default; tap the eye to reveal
+- 🌐 **Kiswahili** — switch the interface between English and Kiswahili
 - ⚙️ **Settings** — accounts, categories (with an emoji + colour picker), and profile
-- 🔐 **Auth** — email + password with JWT, per-user data isolation
-- 📱 **Mobile-first** — responsive Bootstrap 5 UI with an off-canvas menu and card layouts; looks great on phones & desktop, light or dark
+- 🔐 **Auth & security** — email + password with short-lived JWTs + rotating **refresh tokens**, **rate limiting**, a consistent error envelope, and per-user data isolation
+- 📲 **Installable PWA** — add it to your home screen; the app shell is cached by a service worker so it loads on flaky connections
+- 📱 **Mobile-first** — responsive Bootstrap 5 UI with an off-canvas menu and card layouts; looks great on phones & desktop, light or dark; modals trap keyboard focus for accessibility
 
 ---
 

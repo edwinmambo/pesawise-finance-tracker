@@ -1,9 +1,12 @@
 import { Test } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
+import { RefreshToken } from './refresh-token.entity';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -21,12 +24,20 @@ describe('AuthService', () => {
       create: jest.fn(),
     };
     jwt = { sign: jest.fn().mockReturnValue('signed.jwt.token') };
+    const refreshRepo = {
+      create: (x: unknown) => x,
+      save: jest.fn().mockResolvedValue({}),
+      delete: jest.fn().mockResolvedValue({}),
+      findOne: jest.fn(),
+    };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: UsersService, useValue: users },
         { provide: JwtService, useValue: jwt },
+        { provide: ConfigService, useValue: { get: () => undefined } },
+        { provide: getRepositoryToken(RefreshToken), useValue: refreshRepo },
       ],
     }).compile();
 

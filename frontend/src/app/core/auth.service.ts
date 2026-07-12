@@ -6,6 +6,7 @@ import { AuthResult, User } from './models';
 import { API_BASE } from './api-base';
 
 const TOKEN_KEY = 'pesawise_token';
+const REFRESH_KEY = 'pesawise_refresh';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -14,8 +15,12 @@ export class AuthService {
   private appRef = inject(ApplicationRef);
 
   readonly token = signal<string | null>(localStorage.getItem(TOKEN_KEY));
+  readonly refreshToken = signal<string | null>(localStorage.getItem(REFRESH_KEY));
   readonly user = signal<User | null>(null);
   readonly isAuthenticated = computed(() => !!this.token());
+
+  /** Shared in-flight refresh so concurrent 401s trigger a single call. */
+  private refreshing: Promise<string | null> | null = null;
 
   async register(name: string, email: string, password: string): Promise<void> {
     const res = await firstValueFrom(
@@ -50,16 +55,47 @@ export class AuthService {
     this.appRef.tick();
   }
 
+  /**
+   * Exchange the stored refresh token for a new access token. Concurrent callers
+   * share one in-flight request. Returns the new access token, or null on failure.
+   */
+  refresh(): Promise<string | null> {
+    if (this.refreshing) return this.refreshing;
+    const rt = this.refreshToken();
+    if (!rt) return Promise.resolve(null);
+    this.refreshing = firstValueFrom(
+      this.http.post<AuthResult>(`${API_BASE}/auth/refresh`, { refreshToken: rt }),
+    )
+      .then((res) => {
+        this.setSession(res);
+        return res.token;
+      })
+      .catch(() => null)
+      .finally(() => {
+        this.refreshing = null;
+      });
+    return this.refreshing;
+  }
+
   logout(): void {
+    const rt = this.refreshToken();
+    if (rt) {
+      // Best-effort server-side revocation.
+      this.http.post(`${API_BASE}/auth/logout`, { refreshToken: rt }).subscribe({ error: () => {} });
+    }
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_KEY);
     this.token.set(null);
+    this.refreshToken.set(null);
     this.user.set(null);
     this.router.navigateByUrl('/login');
   }
 
   private setSession(res: AuthResult): void {
     localStorage.setItem(TOKEN_KEY, res.token);
+    localStorage.setItem(REFRESH_KEY, res.refreshToken);
     this.token.set(res.token);
+    this.refreshToken.set(res.refreshToken);
     this.user.set(res.user);
   }
 }

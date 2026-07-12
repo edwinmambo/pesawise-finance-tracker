@@ -15,6 +15,7 @@ import { BudgetItem } from '../budgets/budget-item.entity';
 import { ImportBatch } from '../imports/import-batch.entity';
 import { ImportRow } from '../imports/import-row.entity';
 import { RecurringRule } from '../recurring/recurring-rule.entity';
+import { RefreshToken } from '../auth/refresh-token.entity';
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ const entities = [
   ImportBatch,
   ImportRow,
   RecurringRule,
+  RefreshToken,
 ];
 
 // Resolves to the `.ts` sources under ts-node (dev/CLI) and the compiled `.js`
