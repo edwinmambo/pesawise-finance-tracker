@@ -78,7 +78,8 @@ goals and an applied budget. **Tap a card on the login screen** — or use these
 - 📥 **M-Pesa import** — paste M-Pesa **SMS** messages (or a statement **CSV**) and it parses out the transactions, dedupes against what you already have (by reference), and lets you review before committing
 - 🔁 **Recurring** — automate rent, salary, subscriptions and bills on a weekly/monthly schedule; a daily job posts them (catch-up + idempotent), with an upcoming-occurrences view
 - 🎨 **Themes** — Light & softened-Dark modes × 4 accent palettes (Emerald, Ocean, Violet, Sunset), from a Google-style profile menu
-- 💱 **Multi-currency display** — switch symbol & formatting (KES, USD, EUR, GBP, TZS, UGX, ZAR, NGN)
+- 🔀 **Transfers** — move money between accounts as an atomic linked pair; excluded from income/expense so net worth stays correct
+- 💱 **Multi-currency** — per-account currencies with real **FX conversion** (net worth aggregates into your display currency; cross-currency transfers convert at the current rate) across KES, USD, EUR, GBP, TZS, UGX, ZAR, NGN
 - 🙈 **Privacy** — balances hidden by default; tap the eye to reveal
 - ⚙️ **Settings** — accounts, categories (with an emoji + colour picker), and profile
 - 🔐 **Auth** — email + password with JWT, per-user data isolation

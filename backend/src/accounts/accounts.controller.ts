@@ -10,7 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AccountsService } from './accounts.service';
-import { CreateAccountDto, UpdateAccountDto } from './dto/account.dto';
+import { CreateAccountDto, TransferDto, UpdateAccountDto } from './dto/account.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 
@@ -38,6 +38,12 @@ export class AccountsController {
     @Body() dto: CreateAccountDto,
   ) {
     return this.service.create(userId, dto);
+  }
+
+  /** Move money between two of the user's accounts (atomic linked pair). */
+  @Post('transfer')
+  transfer(@CurrentUser('userId') userId: string, @Body() dto: TransferDto) {
+    return this.service.transfer(userId, dto);
   }
 
   @Patch(':id')

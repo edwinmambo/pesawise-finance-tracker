@@ -71,7 +71,13 @@ export class TransactionsService {
   }
 
   async remove(userId: string, id: string): Promise<void> {
-    const result = await this.repo.delete({ id, userId });
-    if (!result.affected) throw new NotFoundException('Transaction not found');
+    const tx = await this.repo.findOne({ where: { id, userId } });
+    if (!tx) throw new NotFoundException('Transaction not found');
+    // Deleting one leg of a transfer removes both, keeping balances consistent.
+    if (tx.transferGroupId) {
+      await this.repo.delete({ userId, transferGroupId: tx.transferGroupId });
+    } else {
+      await this.repo.delete({ id, userId });
+    }
   }
 }

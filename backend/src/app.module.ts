@@ -17,6 +17,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { ReportsModule } from './reports/reports.module';
 import { ImportsModule } from './imports/imports.module';
 import { RecurringModule } from './recurring/recurring.module';
+import { FxModule } from './common/fx.module';
 
 // In the single-service production image the built Angular app is copied to
 // ../client and served by this API. In local dev it isn't present, so we skip
@@ -35,6 +36,7 @@ const staticImports = existsSync(clientPath)
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    FxModule,
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {

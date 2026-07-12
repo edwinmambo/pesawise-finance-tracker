@@ -54,6 +54,16 @@ export class ApiService {
   deleteAccount(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/accounts/${id}`);
   }
+  transfer(body: {
+    fromAccountId: string;
+    toAccountId: string;
+    amount: number;
+    date: string;
+    channel?: string;
+    note?: string;
+  }): Observable<unknown> {
+    return this.http.post(`${this.base}/accounts/transfer`, body);
+  }
 
   // Categories
   categories(): Observable<Category[]> {

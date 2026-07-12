@@ -1,6 +1,6 @@
 export type AccountType = 'MPESA' | 'BANK' | 'CASH' | 'SACCO';
 export type Channel = 'MPESA' | 'BANK' | 'CASH' | 'SACCO';
-export type TransactionType = 'INCOME' | 'EXPENSE';
+export type TransactionType = 'INCOME' | 'EXPENSE' | 'TRANSFER_IN' | 'TRANSFER_OUT';
 export type CategoryKind = 'INCOME' | 'EXPENSE';
 export type LenderType = 'BANK' | 'MOBILE_APP' | 'SACCO' | 'INDIVIDUAL';
 export type InterestType = 'FLAT' | 'REDUCING';
@@ -28,6 +28,7 @@ export interface Account {
   type: AccountType;
   openingBalance: number;
   currentBalance: number;
+  currency: string;
   institution?: string;
   color: string;
 }
@@ -51,6 +52,7 @@ export interface Transaction {
   reference?: string;
   accountId?: string;
   categoryId?: string;
+  transferGroupId?: string | null;
   account?: Account;
   category?: Category;
 }

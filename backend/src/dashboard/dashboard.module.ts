@@ -6,6 +6,7 @@ import { DashboardController } from './dashboard.controller';
 import { AccountsModule } from '../accounts/accounts.module';
 import { LoansModule } from '../loans/loans.module';
 import { SavingsModule } from '../savings/savings.module';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { SavingsModule } from '../savings/savings.module';
     AccountsModule,
     LoansModule,
     SavingsModule,
+    UsersModule,
   ],
   providers: [DashboardService],
   controllers: [DashboardController],
