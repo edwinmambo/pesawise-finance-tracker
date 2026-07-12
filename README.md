@@ -37,6 +37,14 @@ docker compose down -v && docker compose up --build
 
 ---
 
+## ☁️ Host it for free
+
+Want it online? **[DEPLOY.md](./DEPLOY.md)** walks through free-tier hosting on
+**Render** (one service — the API also serves the web app) + a free **Neon**
+Postgres, with GitHub CI that auto-deploys a preview and waits for your approval
+before production. The single-service [`Dockerfile`](./Dockerfile) +
+[`render.yaml`](./render.yaml) are included.
+
 ## 👥 Personas (preloaded, each with its own budget plan)
 
 Every persona has realistic Kenyan accounts, ~6 months of transactions, loans, savings

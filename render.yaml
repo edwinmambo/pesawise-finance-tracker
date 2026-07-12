@@ -1,0 +1,47 @@
+# Render Blueprint — free-tier hosting for Pesawise.
+# Two web services from the single-service Dockerfile:
+#   • pesawise          → production (deploys only when you approve)
+#   • pesawise-preview  → preview (auto-deploys on every push to main)
+# The database is Neon (free, external) — set DATABASE_URL on each service.
+#
+# See DEPLOY.md for the click-by-click setup.
+services:
+  - type: web
+    name: pesawise
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeploy: false          # production waits for your approval (CI deploy hook)
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: AUTO_SEED
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true    # Render generates a strong secret
+      - key: DATABASE_URL
+        sync: false            # paste your Neon connection string in the dashboard
+
+  - type: web
+    name: pesawise-preview
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    region: frankfurt
+    branch: main
+    autoDeploy: true           # preview updates on every push
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: AUTO_SEED
+        value: "true"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false            # a separate Neon DB/branch is recommended for preview

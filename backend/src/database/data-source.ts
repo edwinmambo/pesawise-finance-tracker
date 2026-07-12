@@ -14,24 +14,37 @@ import { BudgetItem } from '../budgets/budget-item.entity';
 
 dotenv.config();
 
-export const AppDataSource = new DataSource({
-  type: 'postgres',
-  host: process.env.DATABASE_HOST ?? 'localhost',
-  port: parseInt(process.env.DATABASE_PORT ?? '5433', 10),
-  username: process.env.DATABASE_USER ?? 'pesawise',
-  password: process.env.DATABASE_PASSWORD ?? 'pesawise',
-  database: process.env.DATABASE_NAME ?? 'pesawise',
-  synchronize: true,
-  entities: [
-    User,
-    Account,
-    Category,
-    Transaction,
-    Loan,
-    LoanPayment,
-    SavingsGoal,
-    SavingsContribution,
-    Budget,
-    BudgetItem,
-  ],
-});
+const entities = [
+  User,
+  Account,
+  Category,
+  Transaction,
+  Loan,
+  LoanPayment,
+  SavingsGoal,
+  SavingsContribution,
+  Budget,
+  BudgetItem,
+];
+
+// Managed hosts (e.g. Neon) provide a single DATABASE_URL + require SSL.
+export const AppDataSource = new DataSource(
+  process.env.DATABASE_URL
+    ? {
+        type: 'postgres',
+        url: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false },
+        synchronize: true,
+        entities,
+      }
+    : {
+        type: 'postgres',
+        host: process.env.DATABASE_HOST ?? 'localhost',
+        port: parseInt(process.env.DATABASE_PORT ?? '5433', 10),
+        username: process.env.DATABASE_USER ?? 'pesawise',
+        password: process.env.DATABASE_PASSWORD ?? 'pesawise',
+        database: process.env.DATABASE_NAME ?? 'pesawise',
+        synchronize: true,
+        entities,
+      },
+);

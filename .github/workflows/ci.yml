@@ -1,0 +1,49 @@
+name: CI / Deploy
+
+# Every push to main builds both apps. The preview service on Render
+# auto-deploys on its own; production deploy waits for your approval here
+# (via the "production" GitHub Environment) then triggers Render's deploy hook.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build & typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build API
+        working-directory: backend
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+      - name: Build Web
+        working-directory: frontend
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+
+  deploy-production:
+    name: Deploy to production (manual approval)
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    # Add "Required reviewers" to this environment (repo Settings → Environments)
+    # so this job pauses for your approval before it runs.
+    environment: production
+    steps:
+      - name: Trigger Render production deploy
+        run: |
+          if [ -z "${{ secrets.RENDER_DEPLOY_HOOK_PROD }}" ]; then
+            echo "RENDER_DEPLOY_HOOK_PROD secret not set — skipping."; exit 0
+          fi
+          curl -fsSL -X POST "${{ secrets.RENDER_DEPLOY_HOOK_PROD }}"
+          echo "Triggered production deploy on Render."
