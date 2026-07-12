@@ -169,6 +169,8 @@ export class ShellComponent {
     { path: '/loans', label: 'Loans', icon: 'bank2' },
     { path: '/savings', label: 'Savings', icon: 'piggy-bank-fill' },
     { path: '/reports', label: 'Reports', icon: 'graph-up-arrow' },
+    { path: '/import', label: 'Import', icon: 'cloud-arrow-down-fill' },
+    { path: '/recurring', label: 'Recurring', icon: 'arrow-repeat' },
     { path: '/settings', label: 'Settings', icon: 'gear-fill' },
   ];
 

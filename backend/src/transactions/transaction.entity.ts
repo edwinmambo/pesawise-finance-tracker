@@ -51,6 +51,12 @@ export class Transaction {
   @Column({ nullable: true })
   reference: string;
 
+  // Links the two rows of a transfer (TRANSFER_OUT + TRANSFER_IN). Dormant
+  // until Phase 4; null for every ordinary income/expense row.
+  @Index()
+  @Column('uuid', { nullable: true })
+  transferGroupId: string | null;
+
   @Column('uuid', { nullable: true })
   accountId: string;
 

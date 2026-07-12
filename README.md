@@ -74,7 +74,9 @@ goals and an applied budget. **Tap a card on the login screen** — or use these
 - 📅 **Calendar** — a month grid of daily income/spending (heat-tinted), with day drill-down and quick-add on any date
 - 🏦 **Loans** — bank / mobile-app / SACCO loans with **flat & reducing-balance interest**, repayment progress & history; **themed in each lender's brand colour** (KCB, Equity, Absa…)
 - 🎯 **Savings goals** — goal-based saving with progress rings and projected targets
-- 📈 **Reports** — period analysis, top categories, spending by channel, savings rate
+- 📈 **Reports** — server-computed period analysis (income vs expenses, top categories, spending by channel, savings rate) with plain-language **insights**, and one-click **CSV / PDF export**
+- 📥 **M-Pesa import** — paste M-Pesa **SMS** messages (or a statement **CSV**) and it parses out the transactions, dedupes against what you already have (by reference), and lets you review before committing
+- 🔁 **Recurring** — automate rent, salary, subscriptions and bills on a weekly/monthly schedule; a daily job posts them (catch-up + idempotent), with an upcoming-occurrences view
 - 🎨 **Themes** — Light & softened-Dark modes × 4 accent palettes (Emerald, Ocean, Violet, Sunset), from a Google-style profile menu
 - 💱 **Multi-currency display** — switch symbol & formatting (KES, USD, EUR, GBP, TZS, UGX, ZAR, NGN)
 - 🙈 **Privacy** — balances hidden by default; tap the eye to reveal
@@ -120,8 +122,9 @@ docker compose up -d db
 ```bash
 cd backend
 npm install
-npm run seed        # loads all 7 personas
-npm run start:dev   # http://localhost:3000/api
+npm run migration:run   # creates the schema (migrations own it now)
+npm run seed            # loads all 7 personas
+npm run start:dev       # http://localhost:3000/api
 ```
 
 **3. Frontend** (terminal 2):
@@ -147,7 +150,7 @@ Copy `.env.example` to `.env` to override defaults (Docker Compose reads it auto
 | `JWT_SECRET` | `change-me-in-production` | **Change in production** |
 | `AUTO_SEED` | `true` | Seed personas on first boot |
 
-> **Dev note:** TypeORM `synchronize: true` auto-creates the schema. Switch to migrations before any production deployment.
+> **Dev note:** the schema is owned by **TypeORM migrations** (`backend/src/database/migrations`), not `synchronize`. In Docker the entrypoint runs `migration:run` on boot; for non-Docker dev run `npm run migration:run` before seeding. After changing an entity, generate a migration with `npm run migration:generate -- src/database/migrations/<Name>`.
 
 ---
 

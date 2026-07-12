@@ -152,6 +152,85 @@ export interface BudgetTemplate {
   items: TemplateItem[];
 }
 
+export type ReportPeriod = '1' | '3' | '6' | 'all';
+export type InsightKind = 'positive' | 'warning' | 'neutral';
+
+export interface Insight {
+  kind: InsightKind;
+  text: string;
+}
+
+export interface ReportData {
+  period: ReportPeriod;
+  periodLabel: string;
+  start: string | null;
+  generatedAt: string;
+  totals: { income: number; expense: number; net: number; savingsRate: number };
+  monthly: { month: string; income: number; expense: number; net: number }[];
+  categories: { name: string; icon: string; color: string; total: number; pct: number }[];
+  channels: { channel: string; total: number; pct: number }[];
+  insights: Insight[];
+}
+
+export type ImportSource = 'MPESA_SMS' | 'MPESA_CSV';
+export type ImportRowStatus = 'NEW' | 'DUPLICATE' | 'INVALID' | 'COMMITTED';
+
+export interface ImportRow {
+  id: string;
+  reference: string | null;
+  type: TransactionType;
+  amount: number;
+  date: string;
+  channel: Channel;
+  note: string | null;
+  raw: string;
+  status: ImportRowStatus;
+}
+
+export interface ImportBatch {
+  id: string;
+  source: ImportSource;
+  committed: boolean;
+  parsedCount: number;
+  duplicateCount: number;
+  unparsedCount: number;
+  committedCount: number;
+  rows: ImportRow[];
+  createdAt: string;
+}
+
+export interface ImportPreview {
+  batch: ImportBatch;
+  unparsed: string[];
+}
+
+export type Cadence = 'WEEKLY' | 'MONTHLY';
+
+export interface RecurringRule {
+  id: string;
+  name: string;
+  type: TransactionType;
+  amount: number;
+  channel: Channel;
+  categoryId: string | null;
+  accountId: string | null;
+  cadence: Cadence;
+  anchorDay: number;
+  nextRunAt: string;
+  lastRunAt: string | null;
+  active: boolean;
+  note: string | null;
+}
+
+export interface UpcomingOccurrence {
+  ruleId: string;
+  name: string;
+  type: TransactionType;
+  amount: number;
+  channel: Channel;
+  date: string;
+}
+
 export interface DashboardSummary {
   totals: {
     totalBalance: number;

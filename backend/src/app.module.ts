@@ -3,6 +3,7 @@ import { existsSync } from 'fs';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -13,6 +14,9 @@ import { LoansModule } from './loans/loans.module';
 import { SavingsModule } from './savings/savings.module';
 import { BudgetsModule } from './budgets/budgets.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { ReportsModule } from './reports/reports.module';
+import { ImportsModule } from './imports/imports.module';
+import { RecurringModule } from './recurring/recurring.module';
 
 // In the single-service production image the built Angular app is copied to
 // ../client and served by this API. In local dev it isn't present, so we skip
@@ -30,6 +34,7 @@ const staticImports = existsSync(clientPath)
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
@@ -38,8 +43,13 @@ const staticImports = existsSync(clientPath)
         const base = {
           type: 'postgres' as const,
           autoLoadEntities: true,
-          // Dev convenience: auto-create schema. Swap for migrations before scale.
-          synchronize: true,
+          // Schema is owned by migrations now (see database/migrations). They are
+          // applied by docker-entrypoint.sh before the app boots; the app itself
+          // never mutates the schema.
+          synchronize: false,
+          migrations: [join(__dirname, 'database', 'migrations', '*.{ts,js}')],
+          migrationsTableName: 'migrations',
+          migrationsRun: false,
         };
         if (url) {
           return { ...base, url, ssl: { rejectUnauthorized: false } };
@@ -64,6 +74,9 @@ const staticImports = existsSync(clientPath)
     SavingsModule,
     BudgetsModule,
     DashboardModule,
+    ReportsModule,
+    ImportsModule,
+    RecurringModule,
   ],
 })
 export class AppModule {}
