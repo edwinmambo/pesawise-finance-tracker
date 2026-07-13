@@ -1,0 +1,8 @@
+# Normalise line endings across platforms. Without this, a Windows checkout
+# rewrites shell scripts to CRLF, which breaks the shebang when they are COPYied
+# into a Linux Docker image ("./docker-entrypoint.sh: not found").
+* text=auto
+
+# Scripts that run inside Linux containers / shells MUST stay LF.
+*.sh text eol=lf
+docker-entrypoint.sh text eol=lf
