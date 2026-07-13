@@ -27,9 +27,9 @@ export class MoneyService {
     });
   }
 
-  format(value: number | null | undefined, decimals = false): string {
+  format(value: number | null | undefined, decimals = false, mask = true): string {
     const info = this.info();
-    if (this.privacy.hidden()) return `${info.symbol} ${MASK}`;
+    if (mask && this.privacy.hidden()) return `${info.symbol} ${MASK}`;
     if (value === null || value === undefined || isNaN(value)) return `${info.symbol} 0`;
     const abs = Math.abs(value);
     const formatted = abs.toLocaleString(info.locale, {
@@ -39,9 +39,13 @@ export class MoneyService {
     return `${value < 0 ? '-' : ''}${info.symbol} ${formatted}`;
   }
 
-  /** Compact form for chart axes, e.g. 85000 -> "85K". */
-  formatShort(value: number | null | undefined): string {
-    if (this.privacy.hidden()) return '•••';
+  /**
+   * Compact form for chart axes, e.g. 85000 -> "85K". Pass `mask = false` to get
+   * the real value even when balances are hidden (callers that blur it via CSS
+   * for an MPESA-style effect instead of showing dots).
+   */
+  formatShort(value: number | null | undefined, mask = true): string {
+    if (mask && this.privacy.hidden()) return '•••';
     if (!value) return '0';
     const abs = Math.abs(value);
     const sign = value < 0 ? '-' : '';

@@ -47,7 +47,7 @@ export interface DonutSegment {
     @keyframes donutIn { from { transform: rotate(-14deg) scale(.9); opacity: 0; } to { transform: rotate(0) scale(1); opacity: 1; } }
     .donut-center { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none; }
     .dc-icon { font-size: 20px; }
-    .dc-val { font-size: 20px; font-weight: 720; letter-spacing: -.02em; }
+    .dc-val { font-size: 20px; font-weight: 720; letter-spacing: -.02em; font-family: var(--num-font); font-variant-numeric: tabular-nums; }
     .dc-lbl { font-size: 11.5px; color: var(--muted); font-weight: 600; max-width: 110px; }
   `],
 })

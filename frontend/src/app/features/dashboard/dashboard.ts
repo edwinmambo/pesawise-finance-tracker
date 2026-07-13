@@ -180,7 +180,7 @@ import { RingComponent } from '../../shared/ring';
                 <span class="rtx-title">{{ t.note || t.category?.name || 'Transaction' }}</span>
                 <span class="rtx-sub"><span class="ch" [style.color]="chColor(t.channel)">{{ chLabel(t.channel) }}</span> · {{ day(t.date) }}</span>
               </span>
-              <app-money [value]="t.amount" signed [hidden]="hideRecent()" />
+              <app-money [value]="t.amount" [direction]="txDir(t.type)" [hidden]="hideRecent()" />
             </a>
           }
         </div>
@@ -302,6 +302,7 @@ export class DashboardComponent implements OnInit {
   pctInt(a: number, b: number): number { return b > 0 ? Math.round((a / b) * 100) : 0; }
   tint(color: string): string { return `color-mix(in srgb, ${color} 15%, transparent)`; }
   lenderColor(l: { lender: string; lenderType: any }): string { return bankColor(l.lender, l.lenderType); }
+  txDir(type: string): 'in' | 'out' { return type === 'INCOME' || type === 'TRANSFER_IN' ? 'in' : 'out'; }
   chColor(ch: any): string { return channelColor(ch); }
   chLabel(ch: string): string { return channelLabel(ch); }
   day(iso: string): string { return fmtDay(iso); }

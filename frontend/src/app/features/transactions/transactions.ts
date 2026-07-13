@@ -43,6 +43,7 @@ interface TxForm {
           <button class="chip" [class.active]="typeFilter() === null" (click)="setType(null)">All</button>
           <button class="chip" [class.active]="typeFilter() === 'INCOME'" (click)="setType('INCOME')">Income</button>
           <button class="chip" [class.active]="typeFilter() === 'EXPENSE'" (click)="setType('EXPENSE')">Expenses</button>
+          <button class="chip" [class.active]="typeFilter() === 'TRANSFER'" (click)="setType('TRANSFER')">Transfers</button>
         </div>
         <select class="input f-select" style="max-width:180px;min-width:0" [(ngModel)]="channelFilter" (ngModelChange)="applyFilters()">
           <option value="">All channels</option>
@@ -66,16 +67,16 @@ interface TxForm {
             <tbody>
               @for (t of filtered(); track t.id) {
                 <tr>
-                  <td style="width:44px"><div class="txicon" [style.background]="tint(t.category?.color)">{{ t.category?.icon || (t.type.startsWith('TRANSFER') ? '🔁' : t.type === 'INCOME' ? '💰' : '🧾') }}</div></td>
+                  <td style="width:48px;padding-left:0"><div class="tx-row-accent"><div class="tx-accent" [style.background]="typeColor(t)"></div><div class="txicon" [style.background]="tint(t.category?.color)">{{ t.category?.icon || typeIcon(t) }}</div></div></td>
                   <td>
-                    <div style="font-weight:600">{{ t.note || t.category?.name || 'Transaction' }}</div>
+                    <div class="row gap-6" style="font-weight:600"><span>{{ t.note || t.category?.name || 'Transaction' }}</span><span class="badge sm" [class]="typeBadge(t)">{{ typeLabel(t) }}</span></div>
                     @if (t.reference) { <div class="muted" style="font-size:11.5px">Ref: {{ t.reference }}</div> }
                   </td>
                   <td class="muted">{{ t.category?.name || '—' }}</td>
                   <td><span class="badge">{{ channelLabel(t.channel) }}</span></td>
                   <td class="muted" style="font-size:12.5px">{{ date(t.date) }}</td>
-                  <td class="num" style="font-weight:650">
-                    <app-money [value]="t.amount" signed />
+                  <td class="num" style="font-weight:700">
+                    <app-money [value]="t.amount" [direction]="dir(t)" />
                   </td>
                   <td style="width:80px" class="num">
                     <button class="btn btn-ghost btn-sm btn-icon" (click)="openEdit(t)" title="Edit"><i class="bi bi-pencil"></i></button>
@@ -90,13 +91,13 @@ interface TxForm {
         <!-- Mobile cards -->
         <div class="tx-list d-md-none">
           @for (t of filtered(); track t.id) {
-            <button type="button" class="tx-card" (click)="openEdit(t)">
-              <span class="txicon" [style.background]="tint(t.category?.color)">{{ t.category?.icon || (t.type.startsWith('TRANSFER') ? '🔁' : t.type === 'INCOME' ? '💰' : '🧾') }}</span>
+            <button type="button" class="tx-card" (click)="openEdit(t)" [style.--tx-accent]="typeColor(t)">
+              <span class="txicon" [style.background]="tint(t.category?.color)">{{ t.category?.icon || typeIcon(t) }}</span>
               <span class="tx-main">
                 <span class="tx-title">{{ t.note || t.category?.name || 'Transaction' }}</span>
                 <span class="tx-sub">{{ t.category?.name || channelLabel(t.channel) }} · {{ date(t.date) }}</span>
               </span>
-              <app-money class="tx-amt" [value]="t.amount" signed />
+              <app-money class="tx-amt" [value]="t.amount" [direction]="dir(t)" />
             </button>
           }
         </div>
@@ -116,7 +117,7 @@ interface TxForm {
               <button class="chip" [class.active]="form.type === 'INCOME'" (click)="setFormType('INCOME')" style="flex:1;justify-content:center">Income</button>
             </div>
             <div class="form-row">
-              <div class="field"><label>Amount (Ksh)</label><input class="input" type="number" min="0" [(ngModel)]="form.amount" placeholder="0" /></div>
+              <div class="field"><label>Amount (KES)</label><input class="input" type="number" min="0" [(ngModel)]="form.amount" placeholder="0" /></div>
               <div class="field"><label>Date</label><input class="input" type="date" [(ngModel)]="form.date" /></div>
             </div>
             <div class="form-row">
@@ -194,11 +195,16 @@ interface TxForm {
       .filters .f-search, .filters .f-select, .filters .f-chips { flex: 1 1 100%; max-width: 100% !important; }
       .filters .f-chips .chip { flex: 1 1 auto; justify-content: center; }
     }
+    .tx-row-accent { display: flex; align-items: center; gap: 8px; }
+    .tx-accent { width: 3px; height: 30px; border-radius: 3px; flex-shrink: 0; }
+    .badge.sm { padding: 1px 7px; font-size: 10.5px; }
+    .badge.tf { color: var(--transfer); background: color-mix(in srgb, var(--transfer) 16%, transparent); border-color: transparent; }
     .tx-list { display: flex; flex-direction: column; }
     .tx-card {
       display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
       padding: 12px 16px; border: none; background: transparent; cursor: pointer;
       border-bottom: 1px solid var(--border); color: var(--ink);
+      box-shadow: inset 3px 0 0 var(--tx-accent, transparent);
       animation: txIn .32s ease both;
     }
     .tx-card:last-child { border-bottom: none; }
@@ -224,7 +230,7 @@ export class TransactionsComponent implements OnInit {
   search = '';
   channelFilter = '';
   categoryFilter = '';
-  typeFilter = signal<TransactionType | null>(null);
+  typeFilter = signal<TransactionType | 'TRANSFER' | null>(null);
 
   showModal = signal(false);
   saving = signal(false);
@@ -257,7 +263,8 @@ export class TransactionsComponent implements OnInit {
     const type = this.typeFilter();
     this.filtered.set(
       this.all().filter((t) => {
-        if (type && t.type !== type) return false;
+        if (type === 'TRANSFER') { if (!t.type.startsWith('TRANSFER')) return false; }
+        else if (type && t.type !== type) return false;
         if (this.channelFilter && t.channel !== this.channelFilter) return false;
         if (this.categoryFilter && t.categoryId !== this.categoryFilter) return false;
         if (q && !(`${t.note ?? ''} ${t.reference ?? ''}`.toLowerCase().includes(q))) return false;
@@ -266,7 +273,22 @@ export class TransactionsComponent implements OnInit {
     );
   }
 
-  setType(t: TransactionType | null): void { this.typeFilter.set(t); this.applyFilters(); }
+  setType(t: TransactionType | 'TRANSFER' | null): void { this.typeFilter.set(t); this.applyFilters(); }
+
+  // ---- type presentation (income vs expense vs transfer) ----
+  private isTransfer(t: Transaction): boolean { return t.type.startsWith('TRANSFER'); }
+  private isIncome(t: Transaction): boolean { return t.type === 'INCOME' || t.type === 'TRANSFER_IN'; }
+  dir(t: Transaction): 'in' | 'out' { return this.isIncome(t) ? 'in' : 'out'; }
+  typeColor(t: Transaction): string {
+    if (this.isTransfer(t)) return 'var(--transfer)';
+    return t.type === 'INCOME' ? 'var(--income)' : 'var(--expense)';
+  }
+  typeIcon(t: Transaction): string { return this.isTransfer(t) ? '🔁' : t.type === 'INCOME' ? '💰' : '🧾'; }
+  typeLabel(t: Transaction): string {
+    return t.type === 'INCOME' ? 'Income' : t.type === 'EXPENSE' ? 'Expense'
+      : t.type === 'TRANSFER_IN' ? 'Transfer in' : 'Transfer out';
+  }
+  typeBadge(t: Transaction): string { return this.isTransfer(t) ? 'tf' : t.type === 'INCOME' ? 'income' : 'expense'; }
 
   // ---- modal ----
   blank(): TxForm {

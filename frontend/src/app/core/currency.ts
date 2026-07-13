@@ -7,7 +7,7 @@ export interface CurrencyInfo {
 
 /** Display currencies (symbol + formatting only — no FX conversion). */
 export const CURRENCIES: CurrencyInfo[] = [
-  { code: 'KES', symbol: 'Ksh', locale: 'en-KE', name: 'Kenyan Shilling' },
+  { code: 'KES', symbol: 'KES', locale: 'en-KE', name: 'Kenyan Shilling' },
   { code: 'USD', symbol: '$', locale: 'en-US', name: 'US Dollar' },
   { code: 'EUR', symbol: '€', locale: 'de-DE', name: 'Euro' },
   { code: 'GBP', symbol: '£', locale: 'en-GB', name: 'British Pound' },

@@ -2,7 +2,7 @@ import { Component, computed, effect, inject, signal } from '@angular/core';
 import { ApiService } from '../../core/api.service';
 import { MoneyService } from '../../core/money.service';
 import { ReportData, ReportPeriod } from '../../core/models';
-import { KesPipe } from '../../core/kes.pipe';
+import { MoneyComponent } from '../../shared/money';
 import { BarChartComponent } from '../../shared/bar-chart';
 import { DonutComponent, DonutSegment } from '../../shared/donut';
 
@@ -16,7 +16,7 @@ const CHANNEL_META: Record<string, { label: string; color: string; icon: string 
 @Component({
   selector: 'app-reports',
   standalone: true,
-  imports: [KesPipe, BarChartComponent, DonutComponent],
+  imports: [MoneyComponent, BarChartComponent, DonutComponent],
   template: `
     <div class="page-actions">
       <div><h2 class="section-title">Reports</h2><div class="muted">Analyse your income and spending</div></div>
@@ -38,9 +38,9 @@ const CHANNEL_META: Record<string, { label: string; color: string; icon: string 
     @if (loading()) { <div class="spinner"></div> }
     @else {
       <div class="grid cols-4">
-        <div class="card stat"><div class="label">Total income</div><div class="value pos">{{ totals().income | kes }}</div></div>
-        <div class="card stat"><div class="label">Total expenses</div><div class="value neg">{{ totals().expense | kes }}</div></div>
-        <div class="card stat"><div class="label">Net</div><div class="value" [class.pos]="totals().net >= 0" [class.neg]="totals().net < 0">{{ totals().net | kes }}</div></div>
+        <div class="card stat"><div class="label">Total income</div><div class="value pos"><app-money [value]="totals().income" /></div></div>
+        <div class="card stat"><div class="label">Total expenses</div><div class="value neg"><app-money [value]="totals().expense" /></div></div>
+        <div class="card stat"><div class="label">Net</div><div class="value"><app-money [value]="totals().net" signed /></div></div>
         <div class="card stat"><div class="label">Savings rate</div><div class="value">{{ totals().savingsRate }}%</div><div class="delta muted">of income kept</div></div>
       </div>
 
@@ -77,7 +77,7 @@ const CHANNEL_META: Record<string, { label: string; color: string; icon: string 
             @for (c of categories(); track c.name) {
               <div class="cat-bar">
                 <div class="between" style="font-size:13px;margin-bottom:5px">
-                  <span>{{ c.icon }} {{ c.name }}</span><b class="tabnum">{{ c.total | kes }}</b>
+                  <span>{{ c.icon }} {{ c.name }}</span><b><app-money [value]="c.total" /></b>
                 </div>
                 <div class="progress"><span [style.width.%]="c.pct" [style.background]="c.color"></span></div>
               </div>
@@ -92,7 +92,7 @@ const CHANNEL_META: Record<string, { label: string; color: string; icon: string 
               <app-donut [segments]="channelSegments()" [centerValue]="expenseShort()" centerLabel="total spent" />
               <div class="legend">
                 @for (s of channelSegments(); track s.label) {
-                  <div class="leg-row"><span class="dot" [style.background]="s.color"></span><span class="leg-name">{{ s.icon }} {{ s.label }}</span><span class="leg-val tabnum">{{ s.value | kes }}</span></div>
+                  <div class="leg-row"><span class="dot" [style.background]="s.color"></span><span class="leg-name">{{ s.icon }} {{ s.label }}</span><app-money class="leg-val" [value]="s.value" /></div>
                 }
               </div>
             } @else { <div class="empty">No expenses in this period.</div> }
