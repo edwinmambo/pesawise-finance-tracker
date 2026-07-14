@@ -23,20 +23,26 @@ describe('MoneyService', () => {
   });
 
   it('formats a positive amount with the currency symbol', () => {
-    expect(money.format(1234)).toBe('Ksh 1,234');
+    expect(money.format(1234)).toBe('KES 1,234');
   });
 
   it('prefixes negative amounts with a minus sign', () => {
-    expect(money.format(-1234)).toBe('-Ksh 1,234');
+    expect(money.format(-1234)).toBe('-KES 1,234');
   });
 
   it('adds two decimals when asked', () => {
-    expect(money.format(1234.5, true)).toBe('Ksh 1,234.50');
+    expect(money.format(1234.5, true)).toBe('KES 1,234.50');
   });
 
   it('masks the value when balances are hidden', () => {
     hidden.set(true);
-    expect(money.format(1234)).toBe('Ksh ••••');
+    expect(money.format(1234)).toBe('KES ••••');
+  });
+
+  it('returns the real value when masking is bypassed (for CSS-blurred charts)', () => {
+    hidden.set(true);
+    expect(money.format(1234, false, false)).toBe('KES 1,234');
+    expect(money.formatShort(85_000, false)).toBe('85K');
   });
 
   it('formatNumber ignores both privacy and the symbol', () => {

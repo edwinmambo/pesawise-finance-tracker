@@ -2,30 +2,31 @@ import { Component, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
 import { SavingsGoal } from '../../core/models';
-import { KesPipe } from '../../core/kes.pipe';
+import { MoneyComponent } from '../../shared/money';
 import { RingComponent } from '../../shared/ring';
 import { fmtDate, todayIso } from '../../core/format';
 
 const ICONS = ['🎯', '🛟', '🎓', '🎄', '🏠', '🚗', '✈️', '💍', '🏥', '📱', '💻', '🐖'];
-const COLORS = ['#16a34a', '#2a78d6', '#4a3aa7', '#dc2626', '#eda100', '#e87ba4', '#eb6834', '#1baf7a'];
+// Savings identity leads with violet (the --savings token) then the usual palette.
+const COLORS = ['#6b57d3', '#2a78d6', '#4a3aa7', '#16a34a', '#dc2626', '#eda100', '#e87ba4', '#eb6834'];
 
 interface GoalForm { name: string; targetAmount: number | null; targetDate: string; icon: string; color: string; }
 
 @Component({
   selector: 'app-savings',
   standalone: true,
-  imports: [FormsModule, KesPipe, RingComponent],
+  imports: [FormsModule, MoneyComponent, RingComponent],
   template: `
     <div class="page-actions">
-      <div><h2 class="section-title">Savings goals</h2><div class="muted">{{ totalSaved() | kes }} saved toward {{ totalTarget() | kes }} in goals</div></div>
-      <button class="btn btn-primary" (click)="openNew()"><i class="bi bi-plus-lg"></i> New goal</button>
+      <div><h2 class="section-title">💜 Savings goals</h2><div class="muted"><app-money [value]="totalSaved()" /> saved toward <app-money [value]="totalTarget()" /> in goals</div></div>
+      <button class="btn sv-btn" (click)="openNew()"><i class="bi bi-plus-lg"></i> New goal</button>
     </div>
 
     @if (loading()) { <div class="spinner"></div> }
     @else if (goals().length) {
       <div class="grid cols-3">
         @for (g of goals(); track g.id) {
-          <div class="card card-pad" style="display:flex;flex-direction:column;gap:14px">
+          <div class="card card-pad sv-card" style="display:flex;flex-direction:column;gap:14px">
             <div class="between">
               <div style="font-weight:700;font-size:15px">{{ g.icon }} {{ g.name }}</div>
               <button class="btn btn-ghost btn-sm btn-icon" (click)="remove(g)"><i class="bi bi-trash"></i></button>
@@ -34,14 +35,14 @@ interface GoalForm { name: string; targetAmount: number | null; targetDate: stri
               <app-ring [progress]="g.progress" [color]="g.color" [size]="128" [thickness]="12" [sub]="'saved'" />
             </div>
             <div style="text-align:center">
-              <div style="font-size:19px;font-weight:720;letter-spacing:-.02em">{{ g.savedAmount | kes }}</div>
-              <div class="muted" style="font-size:12.5px">of {{ g.targetAmount | kes }}</div>
+              <div class="saved-amt" style="font-size:19px;font-weight:720;letter-spacing:-.02em"><app-money [value]="g.savedAmount" /></div>
+              <div class="muted" style="font-size:12.5px">of <app-money [value]="g.targetAmount" /></div>
             </div>
             <div class="between" style="font-size:12.5px;color:var(--ink-2)">
-              <span>{{ g.remaining | kes }} to go</span>
+              <span><app-money [value]="g.remaining" /> to go</span>
               @if (g.targetDate) { <span class="muted">by {{ date(g.targetDate) }}</span> }
             </div>
-            <button class="btn btn-primary btn-sm" (click)="openContribute(g)"><i class="bi bi-plus-lg"></i> Add contribution</button>
+            <button class="btn sv-btn btn-sm" (click)="openContribute(g)"><i class="bi bi-plus-lg"></i> Add contribution</button>
           </div>
         }
       </div>
@@ -57,7 +58,7 @@ interface GoalForm { name: string; targetAmount: number | null; targetDate: stri
           <div class="modal-body">
             <div class="field"><label>Goal name</label><input class="input" [(ngModel)]="gf.name" placeholder="e.g. Emergency Fund" /></div>
             <div class="form-row">
-              <div class="field"><label>Target amount (Ksh)</label><input class="input" type="number" [(ngModel)]="gf.targetAmount" placeholder="0" /></div>
+              <div class="field"><label>Target amount (KES)</label><input class="input" type="number" [(ngModel)]="gf.targetAmount" placeholder="0" /></div>
               <div class="field"><label>Target date (optional)</label><input class="input" type="date" [(ngModel)]="gf.targetDate" /></div>
             </div>
             <div class="field"><label>Icon</label>
@@ -73,7 +74,7 @@ interface GoalForm { name: string; targetAmount: number | null; targetDate: stri
           </div>
           <div class="modal-foot">
             <button class="btn btn-ghost" (click)="showGoal.set(false)">Cancel</button>
-            <button class="btn btn-primary" (click)="saveGoal()" [disabled]="!gf.name || !gf.targetAmount || saving()">Create goal</button>
+            <button class="btn sv-btn" (click)="saveGoal()" [disabled]="!gf.name || !gf.targetAmount || saving()">Create goal</button>
           </div>
         </div>
       </div>
@@ -85,24 +86,30 @@ interface GoalForm { name: string; targetAmount: number | null; targetDate: stri
         <div class="modal" style="max-width:420px;width:100%" (click)="$event.stopPropagation()">
           <div class="modal-head"><h3>{{ cg.icon }} {{ cg.name }}</h3><button class="btn btn-icon btn-ghost" (click)="contribGoal.set(null)"><i class="bi bi-x-lg"></i></button></div>
           <div class="modal-body">
-            <div class="muted" style="font-size:12.5px;margin-bottom:14px">{{ cg.savedAmount | kes }} of {{ cg.targetAmount | kes }} · {{ cg.remaining | kes }} to go</div>
+            <div class="muted" style="font-size:12.5px;margin-bottom:14px"><app-money [value]="cg.savedAmount" /> of <app-money [value]="cg.targetAmount" /> · <app-money [value]="cg.remaining" /> to go</div>
             <div class="form-row">
-              <div class="field"><label>Amount (Ksh)</label><input class="input" type="number" [(ngModel)]="contrib.amount" placeholder="0" /></div>
+              <div class="field"><label>Amount (KES)</label><input class="input" type="number" [(ngModel)]="contrib.amount" placeholder="0" /></div>
               <div class="field"><label>Date</label><input class="input" type="date" [(ngModel)]="contrib.date" /></div>
             </div>
             <div class="field"><label>Note (optional)</label><input class="input" [(ngModel)]="contrib.note" placeholder="e.g. Monthly saving" /></div>
           </div>
           <div class="modal-foot">
             <button class="btn btn-ghost" (click)="contribGoal.set(null)">Cancel</button>
-            <button class="btn btn-primary" (click)="saveContribution()" [disabled]="!contrib.amount || saving()">Add</button>
+            <button class="btn sv-btn" (click)="saveContribution()" [disabled]="!contrib.amount || saving()">Add</button>
           </div>
         </div>
       </div>
     }
   `,
   styles: [`
+    /* Savings gets its own violet identity (the --savings design token), the way
+       loans are themed in each lender's brand colour. */
+    .sv-card { border-top: 3px solid var(--savings); }
+    .saved-amt { color: var(--savings); }
+    .sv-btn { background: var(--savings); border-color: var(--savings); color: #fff; box-shadow: 0 6px 16px color-mix(in srgb, var(--savings) 30%, transparent); }
+    .sv-btn:hover { background: color-mix(in srgb, var(--savings) 86%, #000); border-color: color-mix(in srgb, var(--savings) 86%, #000); }
     .pick { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--border-2); background: var(--surface); font-size: 18px; cursor: pointer; }
-    .pick.on { border-color: var(--brand); background: var(--brand-soft); }
+    .pick.on { border-color: var(--savings); background: color-mix(in srgb, var(--savings) 14%, var(--surface)); }
     .swatch { width: 32px; height: 32px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
     .swatch.on { border-color: var(--ink); box-shadow: 0 0 0 2px var(--surface) inset; }
   `],
@@ -131,7 +138,7 @@ export class SavingsComponent implements OnInit {
   totalSaved(): number { return this.goals().reduce((s, g) => s + g.savedAmount, 0); }
   totalTarget(): number { return this.goals().reduce((s, g) => s + g.targetAmount, 0); }
 
-  blankGoal(): GoalForm { return { name: '', targetAmount: null, targetDate: '', icon: '🎯', color: '#16a34a' }; }
+  blankGoal(): GoalForm { return { name: '', targetAmount: null, targetDate: '', icon: '🎯', color: '#6b57d3' }; }
   openNew(): void { this.gf = this.blankGoal(); this.showGoal.set(true); }
 
   saveGoal(): void {

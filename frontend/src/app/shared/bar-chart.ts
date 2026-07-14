@@ -1,5 +1,7 @@
-import { Component, computed, input, signal } from '@angular/core';
-import { KesPipe, KesShortPipe } from '../core/kes.pipe';
+import { Component, computed, inject, input, signal } from '@angular/core';
+import { KesPipe } from '../core/kes.pipe';
+import { MoneyService } from '../core/money.service';
+import { PrivacyService } from '../core/privacy.service';
 import { monthLabel } from '../core/format';
 
 export interface MonthPoint {
@@ -17,16 +19,16 @@ const MAX_BAR_W = 44;
 @Component({
   selector: 'app-bar-chart',
   standalone: true,
-  imports: [KesPipe, KesShortPipe],
+  imports: [KesPipe],
   template: `
-    <div class="chart-wrap">
+    <div class="chart-wrap" [class.masked]="masked()">
       <svg [attr.viewBox]="'0 0 ' + W + ' ' + H" preserveAspectRatio="xMidYMid meet" class="chart-svg">
         <!-- gridlines + y labels -->
         @for (g of gridlines(); track g.v) {
           <line [attr.x1]="PAD.l" [attr.x2]="W - PAD.r" [attr.y1]="g.y" [attr.y2]="g.y"
                 stroke="var(--grid)" stroke-width="1" />
-          <text [attr.x]="PAD.l - 8" [attr.y]="g.y + 3" text-anchor="end"
-                fill="var(--muted)" font-size="11">{{ g.v | kesShort }}</text>
+          <text class="gval" [attr.x]="PAD.l - 8" [attr.y]="g.y + 3" text-anchor="end"
+                fill="var(--muted)" font-size="11">{{ short(g.v) }}</text>
         }
         <!-- bars -->
         @for (grp of groups(); track grp.month) {
@@ -40,7 +42,7 @@ const MAX_BAR_W = 44;
                 (mouseenter)="active.set(grp.i)" (mouseleave)="active.set(null)" />
         }
       </svg>
-      @if (activeGrp(); as a) {
+      @if (!masked() && activeGrp(); as a) {
         <div class="tip" [style.left.%]="a.leftPct">
           <div class="tip-title">{{ a.full }}</div>
           <div class="tip-row"><span class="d" style="background:var(--income)"></span>Income<b>{{ a.income | kes }}</b></div>
@@ -53,7 +55,11 @@ const MAX_BAR_W = 44;
   styles: [`
     .chart-wrap { position: relative; width: 100%; margin-inline: auto; }
     .chart-svg { width: 100%; height: auto; display: block; overflow: visible; }
-    .bar { transform-box: fill-box; transform-origin: center bottom; animation: barGrow .55s cubic-bezier(.34,.12,.2,1) both; transition: opacity .15s; }
+    .gval { font-family: var(--num-font); font-variant-numeric: tabular-nums; transition: filter .22s ease; }
+    /* MPESA-style: blur the bars + value labels (real values underneath) when hidden. */
+    .chart-wrap.masked .bar { filter: blur(6px); }
+    .chart-wrap.masked .gval { filter: blur(4px); }
+    .bar { transform-box: fill-box; transform-origin: center bottom; animation: barGrow .55s cubic-bezier(.34,.12,.2,1) both; transition: opacity .15s, filter .22s ease; }
     @keyframes barGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
     .tip {
       position: absolute; top: 6px; transform: translateX(-50%);
@@ -69,10 +75,17 @@ const MAX_BAR_W = 44;
   `],
 })
 export class BarChartComponent {
+  private money = inject(MoneyService);
+  private privacy = inject(PrivacyService);
+
   data = input<MonthPoint[]>([]);
   readonly W = W; readonly H = H; readonly PAD = PAD;
 
   active = signal<number | null>(null);
+  masked = computed(() => this.privacy.hidden());
+
+  /** Axis label — real (unmasked) value; blurred via CSS when balances hidden. */
+  short(v: number): string { return this.money.formatShort(v, false); }
 
   private max = computed(() => {
     const m = Math.max(1, ...this.data().flatMap((d) => [d.income, d.expense]));

@@ -3,7 +3,7 @@ import { currencyInfo, CURRENCIES } from './currency';
 describe('currencyInfo', () => {
   it('resolves a known currency code', () => {
     expect(currencyInfo('USD')).toMatchObject({ code: 'USD', symbol: '$' });
-    expect(currencyInfo('KES')).toMatchObject({ code: 'KES', symbol: 'Ksh' });
+    expect(currencyInfo('KES')).toMatchObject({ code: 'KES', symbol: 'KES' });
   });
 
   it('falls back to KES (the first entry) for unknown / missing codes', () => {

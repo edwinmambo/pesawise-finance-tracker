@@ -3,7 +3,6 @@ import { FormsModule } from '@angular/forms';
 import { LowerCasePipe } from '@angular/common';
 import { ApiService } from '../../core/api.service';
 import { InterestType, LenderType, Loan } from '../../core/models';
-import { KesPipe } from '../../core/kes.pipe';
 import { MoneyComponent } from '../../shared/money';
 import { fmtDate, todayIso } from '../../core/format';
 import { bankColor as bankColorFor, lenderIcon as lenderIconFor } from '../../core/bank-colors';
@@ -21,7 +20,7 @@ interface LoanForm {
 @Component({
   selector: 'app-loans',
   standalone: true,
-  imports: [FormsModule, LowerCasePipe, KesPipe, MoneyComponent],
+  imports: [FormsModule, LowerCasePipe, MoneyComponent],
   template: `
     <div class="page-actions">
       <div><h2 class="section-title">Loans</h2><div class="muted">Outstanding <app-money [value]="totalOutstanding()" /> across {{ activeCount() }} active loans</div></div>
@@ -51,14 +50,14 @@ interface LoanForm {
 
             <div class="progress mt-8"><span [style.width.%]="l.progress * 100" [style.background]="bankColor(l)"></span></div>
             <div class="between muted" style="font-size:12px;margin-top:6px">
-              <span>{{ (l.progress * 100).toFixed(0) }}% repaid ({{ l.totalPaid | kes }})</span>
-              <span>of {{ l.totalRepayable | kes }}</span>
+              <span>{{ (l.progress * 100).toFixed(0) }}% repaid (<app-money [value]="l.totalPaid" />)</span>
+              <span>of <app-money [value]="l.totalRepayable" /></span>
             </div>
 
             <div class="loan-facts mt-16">
-              <div><span class="muted">Principal</span><b>{{ l.principal | kes }}</b></div>
-              <div><span class="muted">Interest</span><b>{{ l.totalInterest | kes }}</b></div>
-              <div><span class="muted">Monthly</span><b>{{ l.monthlyPayment | kes }}</b></div>
+              <div><span class="muted">Principal</span><b><app-money [value]="l.principal" /></b></div>
+              <div><span class="muted">Interest</span><b><app-money [value]="l.totalInterest" /></b></div>
+              <div><span class="muted">Monthly</span><b><app-money [value]="l.monthlyPayment" /></b></div>
               <div><span class="muted">Due</span><b>{{ l.dueDate ? date(l.dueDate) : '—' }}</b></div>
             </div>
 
@@ -74,7 +73,7 @@ interface LoanForm {
                 @for (p of l.payments || []; track p.id) {
                   <div class="between hist-row">
                     <span class="muted">{{ date(p.date) }} @if (p.note) { · {{ p.note }} }</span>
-                    <span class="row gap-8"><b class="tabnum">{{ p.amount | kes }}</b>
+                    <span class="row gap-8"><b><app-money [value]="p.amount" /></b>
                     <button class="btn btn-ghost btn-sm" style="padding:2px 6px" (click)="removePayment(l, p.id)"><i class="bi bi-x-lg"></i></button></span>
                   </div>
                 } @empty { <div class="muted" style="font-size:12.5px">No payments recorded yet.</div> }
@@ -98,7 +97,7 @@ interface LoanForm {
               <div class="field"><label>Lender type</label><select class="input" [(ngModel)]="lf.lenderType">@for (t of lenderTypes; track t.v){<option [value]="t.v">{{ t.l }}</option>}</select></div>
             </div>
             <div class="form-row">
-              <div class="field"><label>Principal (Ksh)</label><input class="input" type="number" [(ngModel)]="lf.principal" placeholder="0" /></div>
+              <div class="field"><label>Principal (KES)</label><input class="input" type="number" [(ngModel)]="lf.principal" placeholder="0" /></div>
               <div class="field"><label>Term (months)</label><input class="input" type="number" [(ngModel)]="lf.termMonths" placeholder="12" /></div>
             </div>
             <div class="form-row">
@@ -124,9 +123,9 @@ interface LoanForm {
         <div class="modal" style="max-width:420px;width:100%" (click)="$event.stopPropagation()">
           <div class="modal-head"><h3>Payment · {{ pl.lender }}</h3><button class="btn btn-icon btn-ghost" (click)="payLoan.set(null)"><i class="bi bi-x-lg"></i></button></div>
           <div class="modal-body">
-            <div class="muted" style="font-size:12.5px;margin-bottom:14px">Outstanding {{ pl.outstanding | kes }} · suggested {{ pl.monthlyPayment | kes }}/mo</div>
+            <div class="muted" style="font-size:12.5px;margin-bottom:14px">Outstanding <app-money [value]="pl.outstanding" /> · suggested <app-money [value]="pl.monthlyPayment" />/mo</div>
             <div class="form-row">
-              <div class="field"><label>Amount (Ksh)</label><input class="input" type="number" [(ngModel)]="pay.amount" [placeholder]="pl.monthlyPayment" /></div>
+              <div class="field"><label>Amount (KES)</label><input class="input" type="number" [(ngModel)]="pay.amount" [placeholder]="pl.monthlyPayment" /></div>
               <div class="field"><label>Date</label><input class="input" type="date" [(ngModel)]="pay.date" /></div>
             </div>
             <div class="field"><label>Note (optional)</label><input class="input" [(ngModel)]="pay.note" placeholder="e.g. Monthly installment" /></div>
