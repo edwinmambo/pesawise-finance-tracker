@@ -6,7 +6,7 @@ import { ReportData, ReportPeriod } from '../../core/models';
 import { MoneyComponent } from '../../shared/money';
 import { BarChartComponent } from '../../shared/bar-chart';
 import { DonutComponent, DonutSegment } from '../../shared/donut';
-import { paletteColors, incomeExpensePair } from '../../shared/chart-colors';
+import { paletteColors } from '../../shared/chart-colors';
 
 const CHANNEL_META: Record<string, { label: string; color: string; icon: string }> = {
   MPESA: { label: 'M-Pesa', color: '#1baf7a', icon: '📱' },
@@ -62,8 +62,8 @@ const CHANNEL_META: Record<string, { label: string; color: string; icon: string 
       <div class="card mt-24">
         <div class="card-head"><div><h3>Income vs Expenses</h3><div class="sub">Monthly</div></div>
           <div class="row gap-16">
-            <span class="row" style="gap:6px;font-size:12.5px;color:var(--ink-2)"><span class="dot" [style.background]="barColors().income"></span>Income</span>
-            <span class="row" style="gap:6px;font-size:12.5px;color:var(--ink-2)"><span class="dot" [style.background]="barColors().expense"></span>Expense</span>
+            <span class="row" style="gap:6px;font-size:12.5px;color:var(--ink-2)"><span class="dot" style="background:var(--income)"></span>Income</span>
+            <span class="row" style="gap:6px;font-size:12.5px;color:var(--ink-2)"><span class="dot" style="background:var(--expense)"></span>Expense</span>
           </div>
         </div>
         <div class="card-pad">
@@ -150,9 +150,6 @@ export class ReportsComponent {
   monthly = computed(() => this.data()?.monthly ?? []);
   insights = computed(() => this.data()?.insights ?? []);
   expenseShort = computed(() => this.money.formatShort(this.totals().expense));
-
-  /** Distinct income/expense colour pair for the chosen accent (reactive). */
-  barColors = computed(() => incomeExpensePair(this.theme.accent(), this.theme.mode()));
 
   // Categories & channel breakdowns use the distinct harmonious palette.
   categories = computed(() => {

@@ -6,7 +6,7 @@ import { Budget, DashboardSummary } from '../../core/models';
 import { MoneyService } from '../../core/money.service';
 import { PrivacyService } from '../../core/privacy.service';
 import { ThemeService } from '../../core/theme.service';
-import { paletteColors, paletteColor, incomeExpensePair } from '../../shared/chart-colors';
+import { paletteColors, paletteColor } from '../../shared/chart-colors';
 import { channelColor, channelLabel } from '../../core/channel-colors';
 import { fmtDay } from '../../core/format';
 import { MoneyComponent } from '../../shared/money';
@@ -59,8 +59,8 @@ import { RingComponent } from '../../shared/ring';
           <div class="card-head">
             <div><h3>Income vs Expenses</h3><div class="sub">Last 6 months</div></div>
             <div class="row gap-16">
-              <span class="row gap-6" style="font-size:12.5px;color:var(--ink-2)"><span class="dot" [style.background]="barColors().income"></span>Income</span>
-              <span class="row gap-6" style="font-size:12.5px;color:var(--ink-2)"><span class="dot" [style.background]="barColors().expense"></span>Expense</span>
+              <span class="row gap-6" style="font-size:12.5px;color:var(--ink-2)"><span class="dot" style="background:var(--income)"></span>Income</span>
+              <span class="row gap-6" style="font-size:12.5px;color:var(--ink-2)"><span class="dot" style="background:var(--expense)"></span>Expense</span>
               <button class="eye-btn" (click)="expand.set('bars')" aria-label="Expand"><i class="bi bi-arrows-fullscreen"></i></button>
             </div>
           </div>
@@ -260,9 +260,6 @@ export class DashboardComponent implements OnInit {
 
   activeLoans = computed(() => (this.data()?.loans.filter((l) => l.status === 'ACTIVE') ?? []).slice(0, 4));
   totalDebt = computed(() => this.data()?.totals.totalDebt ?? 0);
-
-  /** Distinct income/expense colour pair for the chosen accent (reactive). */
-  barColors = computed(() => incomeExpensePair(this.theme.accent(), this.theme.mode()));
 
   donutSegments = computed<DonutSegment[]>(() => {
     const cats = this.data()?.categoryBreakdown ?? [];

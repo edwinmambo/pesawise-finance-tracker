@@ -2,8 +2,6 @@ import { Component, computed, inject, input, signal } from '@angular/core';
 import { KesPipe } from '../core/kes.pipe';
 import { MoneyService } from '../core/money.service';
 import { PrivacyService } from '../core/privacy.service';
-import { ThemeService } from '../core/theme.service';
-import { incomeExpensePair } from './chart-colors';
 import { monthLabel } from '../core/format';
 
 export interface MonthPoint {
@@ -33,9 +31,9 @@ const MAX_BAR_W = 44;
         <!-- bars -->
         @for (grp of groups(); track grp.month) {
           <rect class="bar" [attr.x]="grp.ix" [attr.y]="grp.incomeY" [attr.width]="barW()" [attr.height]="grp.incomeH"
-                rx="4" [attr.fill]="colors().income" [style.opacity]="dim(grp.i)" [style.animation-delay.ms]="grp.i * 55" />
+                rx="4" fill="var(--income)" [style.opacity]="dim(grp.i)" [style.animation-delay.ms]="grp.i * 55" />
           <rect class="bar" [attr.x]="grp.ex" [attr.y]="grp.expenseY" [attr.width]="barW()" [attr.height]="grp.expenseH"
-                rx="4" [attr.fill]="colors().expense" [style.opacity]="dim(grp.i)" [style.animation-delay.ms]="grp.i * 55 + 25" />
+                rx="4" fill="var(--expense)" [style.opacity]="dim(grp.i)" [style.animation-delay.ms]="grp.i * 55 + 25" />
           <rect [attr.x]="grp.gx" [attr.y]="PAD.t" [attr.width]="groupW()" [attr.height]="H - PAD.t - PAD.b"
                 fill="transparent" style="cursor:pointer"
                 (mouseenter)="active.set(grp.i)" (mouseleave)="active.set(null)" />
@@ -56,8 +54,8 @@ const MAX_BAR_W = 44;
       @if (!masked() && activeGrp(); as a) {
         <div class="tip" [style.left.%]="a.leftPct">
           <div class="tip-title">{{ a.full }}</div>
-          <div class="tip-row"><span class="d" [style.background]="colors().income"></span>Income<b>{{ a.income | kes }}</b></div>
-          <div class="tip-row"><span class="d" [style.background]="colors().expense"></span>Expense<b>{{ a.expense | kes }}</b></div>
+          <div class="tip-row"><span class="d" style="background:var(--income)"></span>Income<b>{{ a.income | kes }}</b></div>
+          <div class="tip-row"><span class="d" style="background:var(--expense)"></span>Expense<b>{{ a.expense | kes }}</b></div>
           <div class="tip-row net">Net<b [class.pos]="a.income - a.expense >= 0" [class.neg]="a.income - a.expense < 0">{{ a.income - a.expense | kes }}</b></div>
         </div>
       }
@@ -95,15 +93,12 @@ const MAX_BAR_W = 44;
 export class BarChartComponent {
   private money = inject(MoneyService);
   private privacy = inject(PrivacyService);
-  private theme = inject(ThemeService);
 
   data = input<MonthPoint[]>([]);
   readonly W = W; readonly H = H; readonly PAD = PAD;
 
   active = signal<number | null>(null);
   masked = computed(() => this.privacy.hidden());
-  /** Distinct income/expense colour pair for the chosen accent (reactive). */
-  colors = computed(() => incomeExpensePair(this.theme.accent(), this.theme.mode()));
 
   /** Axis label — real (unmasked) value; blurred via CSS when balances hidden. */
   short(v: number): string { return this.money.formatShort(v, false); }
