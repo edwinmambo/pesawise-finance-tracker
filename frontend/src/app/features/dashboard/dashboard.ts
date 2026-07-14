@@ -171,7 +171,7 @@ import { RingComponent } from '../../shared/ring';
         <div class="rtx">
           @for (t of d.recentTransactions; track t.id) {
             <a routerLink="/transactions" class="rtx-row">
-              <span class="rtx-bar" [style.background]="chColor(t.channel)"></span>
+              <span class="rtx-bar" [style.background]="dirColor(t.type)"></span>
               <span class="rtx-main">
                 <span class="rtx-title">{{ t.note || t.category?.name || 'Transaction' }}</span>
                 <span class="rtx-sub"><span class="ch" [style.color]="chColor(t.channel)">{{ chLabel(t.channel) }}</span> · {{ day(t.date) }}</span>
@@ -286,6 +286,8 @@ export class DashboardComponent implements OnInit {
    *  dashboard's mixed-colour widgets. */
   seriesColor(i: number): string { return paletteColor(this.theme.mode(), i); }
   txDir(type: string): 'in' | 'out' { return type === 'INCOME' || type === 'TRANSFER_IN' ? 'in' : 'out'; }
+  /** Theme income/expense colour for a transaction, so the recent list conforms. */
+  dirColor(type: string): string { return this.txDir(type) === 'in' ? 'var(--income)' : 'var(--expense)'; }
   chColor(ch: any): string { return channelColor(ch); }
   chLabel(ch: string): string { return channelLabel(ch); }
   day(iso: string): string { return fmtDay(iso); }
