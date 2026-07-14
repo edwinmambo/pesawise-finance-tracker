@@ -277,6 +277,6 @@ export class SettingsComponent implements OnInit {
   icon(t: AccountType): string { return ACCOUNT_ICON[t]; }
   typeLabel(t: AccountType): string { return t === 'MPESA' ? 'M-Pesa' : t.charAt(0) + t.slice(1).toLowerCase(); }
   initials(): string { const n = this.auth.user()?.name ?? ''; return n.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase() || 'U'; }
-  avatarBg(): string { const c = this.auth.user()?.avatarColor ?? 'var(--brand)'; return `linear-gradient(135deg, ${c}, color-mix(in srgb, ${c} 60%, #000))`; }
+  avatarBg(): string { const c = 'var(--brand)'; return `linear-gradient(135deg, ${c}, color-mix(in srgb, ${c} 60%, #000))`; }
   tint(color?: string): string { return color ? `color-mix(in srgb, ${color} 16%, transparent)` : 'var(--surface-2)'; }
 }

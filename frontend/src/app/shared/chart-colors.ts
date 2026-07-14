@@ -62,3 +62,18 @@ export function accentShades(base: string, count: number): string[] {
     return hslToHex({ h, s: si, l: li });
   });
 }
+
+/**
+ * A high-contrast income / expense pair in the accent hue for the bar chart.
+ * Same hue keeps it on-theme, but a wide lightness gap (light income vs. deep
+ * expense) gives the two bars a strong, readable contrast — unlike a muted
+ * same-lightness shade, which washed out. Works in light and dark mode because
+ * it derives from the mode-resolved accent base.
+ */
+export function incomeExpenseColors(base: string): { income: string; expense: string } {
+  const { h, s } = hexToHsl(base);
+  return {
+    income: hslToHex({ h, s: Math.min(s + 4, 100), l: 62 }),
+    expense: hslToHex({ h, s: Math.min(s + 12, 100), l: 34 }),
+  };
+}

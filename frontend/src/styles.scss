@@ -86,12 +86,6 @@ $enable-negative-margins: true;
   --savings:  #6b57d3;
   --debt:     #e0891e;
 
-  /* Accent-themed chart colors — income is the strong accent, expense a muted
-     accent shade. Both derive from --brand so charts follow the chosen theme.
-     (color-mix resolves at use, so this one definition covers every accent/mode.) */
-  --chart-income:  var(--brand);
-  --chart-expense: color-mix(in srgb, var(--brand) 48%, var(--muted));
-
   --num-font: "Space Grotesk Variable", "Plus Jakarta Sans Variable", system-ui, sans-serif;
 
   --radius:    16px;
