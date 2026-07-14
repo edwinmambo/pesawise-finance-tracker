@@ -25,6 +25,7 @@ import { PrivacyService } from '../core/privacy.service';
   host: {
     class: 'money',
     '[class.masked]': 'masked()',
+    '[class.col]': 'column()',
     '[class.pos]': 'colored() && effSign() > 0',
     '[class.neg]': 'colored() && effSign() < 0',
   },
@@ -37,6 +38,13 @@ export class MoneyComponent {
   value = input<number | null | undefined>(0);
   decimals = input(false, { transform: booleanAttribute });
   signed = input(false, { transform: booleanAttribute });
+  /**
+   * Accounting layout: pins the currency symbol flush-left and the digits
+   * flush-right within a shared min-width, so amounts in a stacked list/column
+   * line up (KES 950 and KES 26,000 share the same footprint). Use in tables
+   * and list rows; leave off for inline/prose amounts.
+   */
+  column = input(false, { transform: booleanAttribute });
   /** Force direction from the transaction type, overriding the numeric sign. */
   direction = input<'in' | 'out' | '' | undefined>(undefined);
   /** Local override; when undefined, follows the global privacy setting. */

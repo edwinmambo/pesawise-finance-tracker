@@ -86,6 +86,12 @@ $enable-negative-margins: true;
   --savings:  #6b57d3;
   --debt:     #e0891e;
 
+  /* Accent-themed chart colors — income is the strong accent, expense a muted
+     accent shade. Both derive from --brand so charts follow the chosen theme.
+     (color-mix resolves at use, so this one definition covers every accent/mode.) */
+  --chart-income:  var(--brand);
+  --chart-expense: color-mix(in srgb, var(--brand) 48%, var(--muted));
+
   --num-font: "Space Grotesk Variable", "Plus Jakarta Sans Variable", system-ui, sans-serif;
 
   --radius:    16px;
@@ -460,6 +466,13 @@ button { font-family: inherit; }
 .money.masked .num { filter: blur(7px); user-select: none; }
 .money.pos .num, .money.pos .cur { color: var(--income); }
 .money.neg .num, .money.neg .cur { color: var(--expense); }
+/* Accounting column: symbol flush-left, digits flush-right within a shared
+   min-width so amounts in a stacked list/table line up like a spreadsheet. */
+.money.col { display: inline-grid; grid-template-columns: auto 1fr; column-gap: .5em; min-width: 6.4em; }
+.money.col .cur { justify-self: start; }
+.money.col .num { justify-self: end; text-align: right; }
+/* Inside a right-aligned table cell, fill the column so digits sit at its edge. */
+.num > .money.col, td.num .money.col { display: grid; width: 100%; }
 .section-title { font-size: 15px; font-weight: 680; margin-bottom: 2px; }
 .page-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
 .page-actions h2 { font-size: 20px; }

@@ -34,7 +34,7 @@ const ACCOUNT_ICON: Record<AccountType, string> = { MPESA: '📱', BANK: '🏦',
               <tr>
                 <td style="width:44px"><div class="txicon" [style.background]="tint(a.color)">{{ icon(a.type) }}</div></td>
                 <td><div style="font-weight:600">{{ a.name }}</div><div class="muted" style="font-size:12px">{{ a.institution || typeLabel(a.type) }}</div></td>
-                <td class="num" style="font-weight:650" [class.neg]="a.currentBalance < 0"><app-money [value]="a.currentBalance" /></td>
+                <td class="num" style="font-weight:650" [class.neg]="a.currentBalance < 0"><app-money [value]="a.currentBalance" column /></td>
                 <td style="width:60px" class="num"><button class="btn btn-ghost btn-sm btn-icon" (click)="remove(a)"><i class="bi bi-trash"></i></button></td>
               </tr>
             }

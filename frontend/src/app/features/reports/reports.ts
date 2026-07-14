@@ -1,10 +1,12 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { ApiService } from '../../core/api.service';
 import { MoneyService } from '../../core/money.service';
+import { ThemeService } from '../../core/theme.service';
 import { ReportData, ReportPeriod } from '../../core/models';
 import { MoneyComponent } from '../../shared/money';
 import { BarChartComponent } from '../../shared/bar-chart';
 import { DonutComponent, DonutSegment } from '../../shared/donut';
+import { accentShades } from '../../shared/chart-colors';
 
 const CHANNEL_META: Record<string, { label: string; color: string; icon: string }> = {
   MPESA: { label: 'M-Pesa', color: '#1baf7a', icon: '📱' },
@@ -77,7 +79,7 @@ const CHANNEL_META: Record<string, { label: string; color: string; icon: string 
             @for (c of categories(); track c.name) {
               <div class="cat-bar">
                 <div class="between" style="font-size:13px;margin-bottom:5px">
-                  <span>{{ c.icon }} {{ c.name }}</span><b><app-money [value]="c.total" /></b>
+                  <span>{{ c.icon }} {{ c.name }}</span><b><app-money [value]="c.total" column /></b>
                 </div>
                 <div class="progress"><span [style.width.%]="c.pct" [style.background]="c.color"></span></div>
               </div>
@@ -92,7 +94,7 @@ const CHANNEL_META: Record<string, { label: string; color: string; icon: string 
               <app-donut [segments]="channelSegments()" [centerValue]="expenseShort()" centerLabel="total spent" />
               <div class="legend">
                 @for (s of channelSegments(); track s.label) {
-                  <div class="leg-row"><span class="dot" [style.background]="s.color"></span><span class="leg-name">{{ s.icon }} {{ s.label }}</span><app-money class="leg-val" [value]="s.value" /></div>
+                  <div class="leg-row"><span class="dot" [style.background]="s.color"></span><span class="leg-name">{{ s.icon }} {{ s.label }}</span><app-money class="leg-val" [value]="s.value" column /></div>
                 }
               </div>
             } @else { <div class="empty">No expenses in this period.</div> }
@@ -125,6 +127,7 @@ const CHANNEL_META: Record<string, { label: string; color: string; icon: string 
 export class ReportsComponent {
   private api = inject(ApiService);
   private money = inject(MoneyService);
+  private theme = inject(ThemeService);
 
   period = signal<ReportPeriod>('6');
   loading = signal(true);
@@ -145,18 +148,26 @@ export class ReportsComponent {
 
   totals = computed(() => this.data()?.totals ?? { income: 0, expense: 0, net: 0, savingsRate: 0 });
   monthly = computed(() => this.data()?.monthly ?? []);
-  categories = computed(() => this.data()?.categories ?? []);
   insights = computed(() => this.data()?.insights ?? []);
   expenseShort = computed(() => this.money.formatShort(this.totals().expense));
 
-  channelSegments = computed<DonutSegment[]>(() =>
-    (this.data()?.channels ?? []).map((c) => ({
+  // Categories & channel breakdowns adopt shades of the chosen accent.
+  categories = computed(() => {
+    const cats = this.data()?.categories ?? [];
+    const shades = accentShades(this.theme.brand(), cats.length);
+    return cats.map((c, i) => ({ ...c, color: shades[i] }));
+  });
+
+  channelSegments = computed<DonutSegment[]>(() => {
+    const chans = this.data()?.channels ?? [];
+    const shades = accentShades(this.theme.brand(), chans.length);
+    return chans.map((c, i) => ({
       label: CHANNEL_META[c.channel]?.label ?? c.channel,
       value: c.total,
-      color: CHANNEL_META[c.channel]?.color ?? '#94a3b8',
+      color: shades[i],
       icon: CHANNEL_META[c.channel]?.icon ?? '',
-    })),
-  );
+    }));
+  });
 
   icon(kind: string): string {
     return kind === 'positive' ? '✅' : kind === 'warning' ? '⚠️' : '•';

@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { computed, Injectable, signal } from '@angular/core';
 
 export type ThemeMode = 'light' | 'dark';
 export type Accent = 'emerald' | 'ocean' | 'violet' | 'sunset';
@@ -10,6 +10,15 @@ export const ACCENTS: { id: Accent; name: string; swatch: string }[] = [
   { id: 'sunset', name: 'Sunset', swatch: '#e8722a' },
 ];
 
+/** The resolved --brand hex per accent × mode (mirrors styles.scss :144-156).
+ *  Kept here so charts can derive accent-shade ramps without a DOM read. */
+const BRAND: Record<Accent, Record<ThemeMode, string>> = {
+  emerald: { light: '#10a37f', dark: '#17c199' },
+  ocean:   { light: '#1f7ae0', dark: '#3f9bff' },
+  violet:  { light: '#7c5cdb', dark: '#9a80f0' },
+  sunset:  { light: '#e8722a', dark: '#f5934e' },
+};
+
 const MODE_KEY = 'pesawise_theme';
 const ACCENT_KEY = 'pesawise_accent';
 
@@ -17,6 +26,10 @@ const ACCENT_KEY = 'pesawise_accent';
 export class ThemeService {
   readonly mode = signal<ThemeMode>(this.initialMode());
   readonly accent = signal<Accent>(this.initialAccent());
+
+  /** Current accent base colour (hex), reactive to accent + mode changes.
+   *  Feed to accentShades() to theme charts. */
+  readonly brand = computed(() => BRAND[this.accent()][this.mode()]);
 
   /** Back-compat alias so existing `theme.theme()` callers keep working. */
   readonly theme = this.mode;

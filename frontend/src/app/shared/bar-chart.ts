@@ -12,7 +12,7 @@ export interface MonthPoint {
 
 const W = 720;
 const H = 260;
-const PAD = { l: 46, r: 14, t: 16, b: 30 };
+const PAD = { l: 62, r: 14, t: 16, b: 30 };
 const MAX_GROUP_W = 130; // cap so sparse data stays tidy instead of stretching
 const MAX_BAR_W = 44;
 
@@ -23,42 +23,58 @@ const MAX_BAR_W = 44;
   template: `
     <div class="chart-wrap" [class.masked]="masked()">
       <svg [attr.viewBox]="'0 0 ' + W + ' ' + H" preserveAspectRatio="xMidYMid meet" class="chart-svg">
-        <!-- gridlines + y labels -->
+        <!-- gridlines -->
         @for (g of gridlines(); track g.v) {
           <line [attr.x1]="PAD.l" [attr.x2]="W - PAD.r" [attr.y1]="g.y" [attr.y2]="g.y"
-                stroke="var(--grid)" stroke-width="1" />
-          <text class="gval" [attr.x]="PAD.l - 8" [attr.y]="g.y + 3" text-anchor="end"
-                fill="var(--muted)" font-size="11">{{ short(g.v) }}</text>
+                stroke="var(--grid)" stroke-width="1" vector-effect="non-scaling-stroke" />
         }
         <!-- bars -->
         @for (grp of groups(); track grp.month) {
           <rect class="bar" [attr.x]="grp.ix" [attr.y]="grp.incomeY" [attr.width]="barW()" [attr.height]="grp.incomeH"
-                rx="4" fill="var(--income)" [style.opacity]="dim(grp.i)" [style.animation-delay.ms]="grp.i * 55" />
+                rx="4" fill="var(--chart-income)" [style.opacity]="dim(grp.i)" [style.animation-delay.ms]="grp.i * 55" />
           <rect class="bar" [attr.x]="grp.ex" [attr.y]="grp.expenseY" [attr.width]="barW()" [attr.height]="grp.expenseH"
-                rx="4" fill="var(--expense)" [style.opacity]="dim(grp.i)" [style.animation-delay.ms]="grp.i * 55 + 25" />
-          <text [attr.x]="grp.cx" [attr.y]="H - 10" text-anchor="middle" fill="var(--muted)" font-size="11.5">{{ grp.label }}</text>
+                rx="4" fill="var(--chart-expense)" [style.opacity]="dim(grp.i)" [style.animation-delay.ms]="grp.i * 55 + 25" />
           <rect [attr.x]="grp.gx" [attr.y]="PAD.t" [attr.width]="groupW()" [attr.height]="H - PAD.t - PAD.b"
                 fill="transparent" style="cursor:pointer"
                 (mouseenter)="active.set(grp.i)" (mouseleave)="active.set(null)" />
         }
       </svg>
+      <!-- Axis labels overlaid as real-px HTML so they stay legible on mobile
+           (SVG text would shrink with the viewBox on narrow screens). -->
+      <div class="axis-y">
+        @for (g of gridlines(); track g.v) {
+          <span class="gval" [style.top.%]="g.y / H * 100">{{ short(g.v) }}</span>
+        }
+      </div>
+      <div class="axis-x">
+        @for (grp of groups(); track grp.month) {
+          <span class="xlab" [style.left.%]="grp.cx / W * 100">{{ grp.label }}</span>
+        }
+      </div>
       @if (!masked() && activeGrp(); as a) {
         <div class="tip" [style.left.%]="a.leftPct">
           <div class="tip-title">{{ a.full }}</div>
-          <div class="tip-row"><span class="d" style="background:var(--income)"></span>Income<b>{{ a.income | kes }}</b></div>
-          <div class="tip-row"><span class="d" style="background:var(--expense)"></span>Expense<b>{{ a.expense | kes }}</b></div>
+          <div class="tip-row"><span class="d" style="background:var(--chart-income)"></span>Income<b>{{ a.income | kes }}</b></div>
+          <div class="tip-row"><span class="d" style="background:var(--chart-expense)"></span>Expense<b>{{ a.expense | kes }}</b></div>
           <div class="tip-row net">Net<b [class.pos]="a.income - a.expense >= 0" [class.neg]="a.income - a.expense < 0">{{ a.income - a.expense | kes }}</b></div>
         </div>
       }
     </div>
   `,
   styles: [`
+    /* The SVG fills .chart-wrap exactly (matching aspect ratio), so overlay
+       labels positioned by % map straight onto viewBox coordinates. */
     .chart-wrap { position: relative; width: 100%; margin-inline: auto; }
     .chart-svg { width: 100%; height: auto; display: block; overflow: visible; }
-    .gval { font-family: var(--num-font); font-variant-numeric: tabular-nums; transition: filter .22s ease; }
+    /* Y-axis value labels live in the left gutter (PAD.l = 62 / 720 ≈ 8.6%). */
+    .axis-y { position: absolute; top: 0; left: 0; height: 100%; width: 8.6%; pointer-events: none; }
+    .axis-y .gval { position: absolute; right: 5px; transform: translateY(-50%); font-size: 11px; color: var(--muted); font-family: var(--num-font); font-variant-numeric: tabular-nums; white-space: nowrap; transition: filter .22s ease; }
+    /* X-axis month labels along the base band. */
+    .axis-x { position: absolute; left: 0; right: 0; bottom: 0; height: 18px; pointer-events: none; }
+    .axis-x .xlab { position: absolute; bottom: 0; transform: translateX(-50%); font-size: 12px; color: var(--muted); white-space: nowrap; }
     /* MPESA-style: blur the bars + value labels (real values underneath) when hidden. */
     .chart-wrap.masked .bar { filter: blur(6px); }
-    .chart-wrap.masked .gval { filter: blur(4px); }
+    .chart-wrap.masked .axis-y .gval { filter: blur(4px); }
     .bar { transform-box: fill-box; transform-origin: center bottom; animation: barGrow .55s cubic-bezier(.34,.12,.2,1) both; transition: opacity .15s, filter .22s ease; }
     @keyframes barGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
     .tip {

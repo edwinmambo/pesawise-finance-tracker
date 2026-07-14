@@ -5,6 +5,8 @@ import { ApiService } from '../../core/api.service';
 import { Budget, DashboardSummary } from '../../core/models';
 import { MoneyService } from '../../core/money.service';
 import { PrivacyService } from '../../core/privacy.service';
+import { ThemeService } from '../../core/theme.service';
+import { accentShades } from '../../shared/chart-colors';
 import { channelColor, channelLabel } from '../../core/channel-colors';
 import { bankColor } from '../../core/bank-colors';
 import { fmtDay } from '../../core/format';
@@ -21,11 +23,6 @@ import { RingComponent } from '../../shared/ring';
     @if (loading()) {
       <div class="spinner"></div>
     } @else if (data(); as d) {
-      <!-- Digestible insight -->
-      <div class="insight">
-        <span class="ic"><i class="bi bi-stars"></i></span>
-        <span>{{ insight() }}</span>
-      </div>
 
       <!-- Overview tiles (clickable shortcuts) -->
       <div class="between" style="margin:18px 0 12px">
@@ -83,7 +80,7 @@ import { RingComponent } from '../../shared/ring';
                   <div class="leg-row">
                     <span class="dot" [style.background]="s.color"></span>
                     <span class="leg-name">{{ s.icon }} {{ s.label }}</span>
-                    <app-money class="leg-val" [value]="s.value" />
+                    <app-money class="leg-val" [value]="s.value" column />
                   </div>
                 }
               </div>
@@ -180,7 +177,7 @@ import { RingComponent } from '../../shared/ring';
                 <span class="rtx-title">{{ t.note || t.category?.name || 'Transaction' }}</span>
                 <span class="rtx-sub"><span class="ch" [style.color]="chColor(t.channel)">{{ chLabel(t.channel) }}</span> · {{ day(t.date) }}</span>
               </span>
-              <app-money [value]="t.amount" [direction]="txDir(t.type)" [hidden]="hideRecent()" />
+              <app-money [value]="t.amount" [direction]="txDir(t.type)" [hidden]="hideRecent()" column />
             </a>
           }
         </div>
@@ -200,14 +197,14 @@ import { RingComponent } from '../../shared/ring';
                 <app-bar-chart [data]="d.monthlySeries" />
                 <div class="table-wrap mt-16"><table class="table"><thead><tr><th>Month</th><th class="num">Income</th><th class="num">Expense</th><th class="num">Net</th></tr></thead><tbody>
                   @for (m of d.monthlySeries; track m.month) {
-                    <tr><td>{{ monthFull(m.month) }}</td><td class="num pos"><app-money [value]="m.income" /></td><td class="num neg"><app-money [value]="m.expense" /></td><td class="num"><app-money [value]="m.income - m.expense" signed /></td></tr>
+                    <tr><td>{{ monthFull(m.month) }}</td><td class="num pos"><app-money [value]="m.income" column /></td><td class="num neg"><app-money [value]="m.expense" column /></td><td class="num"><app-money [value]="m.income - m.expense" signed column /></td></tr>
                   }
                 </tbody></table></div>
               } @else {
                 <div style="display:flex;justify-content:center"><app-donut [segments]="donutSegments()" [size]="240" [centerValue]="totalSpendShort()" centerLabel="this month" /></div>
                 <div class="table-wrap mt-16"><table class="table"><tbody>
                   @for (s of donutSegments(); track s.label) {
-                    <tr><td style="width:34px"><span class="dot" [style.background]="s.color"></span></td><td>{{ s.icon }} {{ s.label }}</td><td class="num"><app-money [value]="s.value" /></td></tr>
+                    <tr><td style="width:34px"><span class="dot" [style.background]="s.color"></span></td><td>{{ s.icon }} {{ s.label }}</td><td class="num"><app-money [value]="s.value" column /></td></tr>
                   }
                 </tbody></table></div>
               }
@@ -218,10 +215,6 @@ import { RingComponent } from '../../shared/ring';
     }
   `,
   styles: [`
-    .insight { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 16px; font-size: 14px; font-weight: 550;
-      background: linear-gradient(100deg, color-mix(in srgb, var(--brand) 14%, var(--surface)), var(--surface));
-      border: 1px solid color-mix(in srgb, var(--brand) 24%, var(--border)); color: var(--ink); box-shadow: var(--shadow); }
-    .insight .ic { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--brand); color: #fff; flex-shrink: 0; }
     a.card.stat { text-decoration: none; color: var(--ink); }
     .eye-btn { border: none; background: transparent; color: var(--muted); cursor: pointer; padding: 3px 6px; font-size: 14px; border-radius: 7px; line-height: 1; }
     .eye-btn:hover { color: var(--ink); background: var(--surface-2); }
@@ -242,6 +235,7 @@ export class DashboardComponent implements OnInit {
   private api = inject(ApiService);
   private money = inject(MoneyService);
   private priv = inject(PrivacyService);
+  private theme = inject(ThemeService);
   data = signal<DashboardSummary | null>(null);
   activeBudget = signal<Budget | null>(null);
   loading = signal(true);
@@ -268,28 +262,16 @@ export class DashboardComponent implements OnInit {
   activeLoans = computed(() => (this.data()?.loans.filter((l) => l.status === 'ACTIVE') ?? []).slice(0, 4));
   totalDebt = computed(() => this.data()?.totals.totalDebt ?? 0);
 
-  insight = computed(() => {
-    const d = this.data();
-    const b = this.activeBudget();
-    if (!d) return '';
-    const net = d.totals.monthNet;
-    const netClause = net >= 0 ? 'you’re net positive this month' : 'you’re spending more than you earn this month';
-    if (b && b.totalLimit > 0) {
-      const p = this.pctInt(b.totalSpent, b.totalLimit);
-      const status = p > 100 ? 'over budget — ease up' : p >= 80 ? 'getting close' : 'on track';
-      return `You’re ${p}% through your ${b.name} — ${status}, and ${netClause}.`;
-    }
-    return `So far ${netClause}. Set up a budget to track your spending by category.`;
-  });
-
   donutSegments = computed<DonutSegment[]>(() => {
     const cats = this.data()?.categoryBreakdown ?? [];
-    const top = cats.slice(0, 7).map((c) => ({ label: c.name, value: c.total, color: c.color, icon: c.icon }));
+    const top = cats.slice(0, 7).map((c) => ({ label: c.name, value: c.total, icon: c.icon }));
     const rest = cats.slice(7);
-    if (rest.length) {
-      top.push({ label: 'Other', value: rest.reduce((s, c) => s + c.total, 0), color: '#94a3b8', icon: '➕' });
-    }
-    return top;
+    const items = rest.length
+      ? [...top, { label: 'Other', value: rest.reduce((s, c) => s + c.total, 0), icon: '➕' }]
+      : top;
+    // Shades of the chosen accent instead of a rainbow, largest slice first.
+    const shades = accentShades(this.theme.brand(), items.length);
+    return items.map((it, i) => ({ ...it, color: shades[i] }));
   });
 
   totalSpendShort = computed(() => {
