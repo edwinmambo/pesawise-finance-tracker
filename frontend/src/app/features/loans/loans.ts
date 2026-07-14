@@ -1,9 +1,11 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { LowerCasePipe } from '@angular/common';
 import { ApiService } from '../../core/api.service';
-import { InterestType, LenderType, Loan } from '../../core/models';
+import { InterestType, LenderType, Loan, Insight } from '../../core/models';
 import { MoneyComponent } from '../../shared/money';
+import { MoneyService } from '../../core/money.service';
+import { ToastService } from '../../core/toast.service';
 import { fmtDate, todayIso } from '../../core/format';
 import { bankColor as bankColorFor, lenderIcon as lenderIconFor } from '../../core/bank-colors';
 
@@ -29,6 +31,19 @@ interface LoanForm {
 
     @if (loading()) { <div class="spinner"></div> }
     @else if (loans().length) {
+      @if (insights().length) {
+        <div class="card mb-16 insights-card">
+          <div class="card-pad">
+            <div class="section-title" style="margin-bottom:10px"><i class="bi bi-lightbulb"></i> Loan insights</div>
+            @for (ins of insights(); track ins.text) {
+              <div class="insight" [class.positive]="ins.kind === 'positive'" [class.warning]="ins.kind === 'warning'" [class.neutral]="ins.kind === 'neutral'">
+                <span class="ic">{{ ins.kind === 'positive' ? '✅' : ins.kind === 'warning' ? '⚠️' : '💡' }}</span>
+                <span>{{ ins.text }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      }
       <div class="grid cols-2">
         @for (l of loans(); track l.id) {
           <div class="card card-pad">
@@ -143,10 +158,19 @@ interface LoanForm {
     .loan-facts > div { display: flex; justify-content: space-between; font-size: 13px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
     .history { border-top: 1px solid var(--border); padding-top: 12px; display: flex; flex-direction: column; gap: 8px; }
     .hist-row { font-size: 13px; }
+    .mb-16 { margin-bottom: 16px; }
+    .insights-card .insight { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; padding: 7px 0; }
+    .insights-card .insight + .insight { border-top: 1px solid var(--border); }
+    .insights-card .insight .ic { flex: none; }
+    .insights-card .insight.positive { color: var(--income); }
+    .insights-card .insight.warning { color: var(--expense); }
+    .insights-card .insight.neutral { color: var(--ink-2); }
   `],
 })
 export class LoansComponent implements OnInit {
   private api = inject(ApiService);
+  private money = inject(MoneyService);
+  private toast = inject(ToastService);
   loans = signal<Loan[]>([]);
   loading = signal(true);
   expanded = signal<string | null>(null);
@@ -169,6 +193,31 @@ export class LoansComponent implements OnInit {
 
   activeCount(): number { return this.loans().filter((l) => l.status === 'ACTIVE').length; }
   totalOutstanding(): number { return this.loans().filter((l) => l.status === 'ACTIVE').reduce((s, l) => s + l.outstanding, 0); }
+
+  /** Client-computed repayment coaching from the loan figures. */
+  insights = computed<Insight[]>(() => {
+    const active = this.loans().filter((l) => l.status === 'ACTIVE');
+    if (!active.length) return [];
+    const out: Insight[] = [];
+    const totalOut = active.reduce((s, l) => s + l.outstanding, 0);
+    const totalMonthly = active.reduce((s, l) => s + l.monthlyPayment, 0);
+
+    if (active.length > 1) {
+      const top = [...active].sort((a, b) => b.interestRate - a.interestRate)[0];
+      out.push({ kind: 'neutral', text: `Throw any extra at ${top.lender} first — at ${top.interestRate}% p.a. it's your priciest debt (avalanche method).` });
+    }
+    if (totalMonthly > 0) {
+      const months = Math.ceil(totalOut / totalMonthly);
+      out.push({ kind: 'neutral', text: `At ~${this.money.format(totalMonthly)}/mo you'd be debt-free in about ${months} month${months === 1 ? '' : 's'}.` });
+    }
+    const heavy = active.find((l) => l.principal > 0 && l.totalInterest / l.principal > 0.5);
+    if (heavy) {
+      out.push({ kind: 'warning', text: `${heavy.lender} interest totals ${this.money.format(heavy.totalInterest)} — ${Math.round((heavy.totalInterest / heavy.principal) * 100)}% of principal. Paying early trims it.` });
+    }
+    const avg = Math.round((active.reduce((s, l) => s + l.progress, 0) / active.length) * 100);
+    if (avg >= 50) out.push({ kind: 'positive', text: `You're ${avg}% through repaying your active loans on average — over halfway there.` });
+    return out.slice(0, 4);
+  });
   toggleHistory(id: string): void { this.expanded.set(this.expanded() === id ? null : id); }
 
   blankLoan(): LoanForm {
@@ -185,14 +234,15 @@ export class LoansComponent implements OnInit {
       termMonths: Number(this.lf.termMonths ?? 12), startDate: this.lf.startDate,
       dueDate: this.lf.dueDate || undefined,
     }).subscribe({
-      next: () => { this.saving.set(false); this.showLoan.set(false); this.reload(); },
-      error: () => this.saving.set(false),
+      next: () => { this.saving.set(false); this.showLoan.set(false); this.toast.success('Loan added'); this.reload(); },
+      error: () => { this.saving.set(false); this.toast.error('Could not add the loan'); },
     });
   }
 
-  remove(l: Loan): void {
-    if (!confirm(`Delete loan from ${l.lender}?`)) return;
-    this.api.deleteLoan(l.id).subscribe(() => this.reload());
+  async remove(l: Loan): Promise<void> {
+    const ok = await this.toast.confirm({ title: `Delete loan from ${l.lender}?`, confirmText: 'Delete', danger: true });
+    if (!ok) return;
+    this.api.deleteLoan(l.id).subscribe(() => { this.toast.success('Loan deleted'); this.reload(); });
   }
 
   openPayment(l: Loan): void { this.pay = { amount: null, date: todayIso(), note: '' }; this.payLoan.set(l); }
@@ -201,8 +251,8 @@ export class LoansComponent implements OnInit {
     if (!l || !this.pay.amount) return;
     this.saving.set(true);
     this.api.addLoanPayment(l.id, { amount: Number(this.pay.amount), date: this.pay.date, note: this.pay.note || undefined }).subscribe({
-      next: () => { this.saving.set(false); this.payLoan.set(null); this.reload(); },
-      error: () => this.saving.set(false),
+      next: () => { this.saving.set(false); this.payLoan.set(null); this.toast.success('Payment recorded'); this.reload(); },
+      error: () => { this.saving.set(false); this.toast.error('Could not record the payment'); },
     });
   }
   removePayment(l: Loan, paymentId: string): void {

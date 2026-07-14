@@ -1,7 +1,9 @@
 import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
-import { Budget, BudgetItem, BudgetTemplate, Category } from '../../core/models';
+import { Budget, BudgetItem, BudgetTemplate, Category, Insight } from '../../core/models';
+import { MoneyService } from '../../core/money.service';
+import { ToastService } from '../../core/toast.service';
 import { MoneyComponent } from '../../shared/money';
 import { IconPickerComponent } from '../../shared/icon-picker';
 
@@ -12,6 +14,29 @@ interface ItemForm {
   icon: string;
   color: string;
 }
+
+interface Pick { label: string; icon: string; color: string; categoryId?: string; }
+
+/** Common Kenyan budget lines, so adding categories is one click even when the
+ *  user has no matching Category yet (name → icon/colour auto-fill). */
+const PRESETS: Pick[] = [
+  { label: 'Rent', icon: '🏠', color: '#ef4444' },
+  { label: 'Groceries', icon: '🛒', color: '#10b981' },
+  { label: 'Transport', icon: '🚌', color: '#3b82f6' },
+  { label: 'Airtime & Data', icon: '📱', color: '#8b5cf6' },
+  { label: 'Electricity', icon: '💡', color: '#f59e0b' },
+  { label: 'Water', icon: '🚰', color: '#14b8a6' },
+  { label: 'School fees', icon: '🎓', color: '#6366f1' },
+  { label: 'Eating out', icon: '🍔', color: '#f97316' },
+  { label: 'Entertainment', icon: '🎬', color: '#ec4899' },
+  { label: 'Medical', icon: '🏥', color: '#e11d48' },
+  { label: 'Savings', icon: '💰', color: '#22c55e' },
+  { label: 'Loan repayment', icon: '🏦', color: '#0ea5e9' },
+  { label: 'Shopping', icon: '🛍️', color: '#d946ef' },
+  { label: 'Family / Black tax', icon: '👨‍👩‍👧', color: '#a855f7' },
+  { label: 'Church / Giving', icon: '⛪', color: '#84cc16' },
+  { label: 'Chama', icon: '🤝', color: '#f43f5e' },
+];
 
 @Component({
   selector: 'app-budgets',
@@ -31,13 +56,13 @@ interface ItemForm {
     } @else {
       <!-- Ready-made plans -->
       <div class="section-title mt-8">Ready-made plans</div>
-      <div class="muted" style="font-size:13px;margin-bottom:14px">Tuned to real Kenyan money realities — apply one, then tweak the limits.</div>
+      <div class="muted" style="font-size:13px;margin-bottom:14px">Tuned to real Kenyan money realities — pick one, tweak the limits, then save.</div>
       <div class="grid cols-3">
         @for (t of templates(); track t.planType) {
           <div class="card hover plan-card">
             <div class="card-pad">
               <div class="row between">
-                <span class="tileicon" [style.background]="tint(t.color)" [style.color]="t.color" style="font-size:19px">{{ t.icon }}</span>
+                <span class="tileicon flat" [style.color]="t.color" style="font-size:22px">{{ t.icon }}</span>
                 <span class="badge" [style.color]="t.color" [style.background]="tint(t.color)">{{ t.items.length }} categories</span>
               </div>
               <h3 class="mt-16" style="font-size:17px">{{ t.name }}</h3>
@@ -51,13 +76,28 @@ interface ItemForm {
                 <span class="muted">Total budget</span>
                 <b><app-money [value]="templateTotal(t)" /></b>
               </div>
-              <button class="btn btn-primary btn-block mt-16" [style.background]="t.color" [style.borderColor]="t.color" [style.boxShadow]="'0 6px 16px ' + tint(t.color)" (click)="applyTemplate(t)" [disabled]="applying()">
-                <i class="bi bi-magic"></i> Use this plan
+              <button class="btn btn-primary btn-block mt-16" [style.background]="t.color" [style.borderColor]="t.color" [style.boxShadow]="'0 6px 16px ' + tint(t.color)" (click)="useTemplate(t)">
+                <i class="bi bi-magic"></i> Use {{ t.name }}
               </button>
             </div>
           </div>
         }
       </div>
+
+      <!-- Insights -->
+      @if (insights().length) {
+        <div class="card mt-24 insights-card">
+          <div class="card-pad">
+            <div class="section-title" style="margin-bottom:10px"><i class="bi bi-lightbulb"></i> Budget insights</div>
+            @for (ins of insights(); track ins.text) {
+              <div class="insight" [class.positive]="ins.kind === 'positive'" [class.warning]="ins.kind === 'warning'" [class.neutral]="ins.kind === 'neutral'">
+                <span class="ic">{{ ins.kind === 'positive' ? '✅' : ins.kind === 'warning' ? '⚠️' : '•' }}</span>
+                <span>{{ ins.text }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      }
 
       <!-- Your budgets -->
       <div class="section-title mt-24">Your budgets</div>
@@ -69,7 +109,7 @@ interface ItemForm {
             <div class="card budget-card" [class.active-budget]="b.isActive" [style.--card-accent]="b.color">
               <div class="card-head">
                 <div class="row" style="gap:12px">
-                  <span class="tileicon" [style.background]="tint(b.color)" [style.color]="b.color" style="font-size:19px">{{ b.icon }}</span>
+                  <span class="tileicon flat" [style.color]="b.color" style="font-size:22px">{{ b.icon }}</span>
                   <div>
                     <h3>{{ b.name }}
                       @if (b.isActive) { <span class="badge" [style.background]="tint(b.color)" [style.color]="b.color" style="margin-left:6px">Active</span> }
@@ -107,7 +147,7 @@ interface ItemForm {
                 <div class="items mt-16">
                   @for (it of b.items; track it.id) {
                     <div class="item">
-                      <span class="txicon" [style.background]="tint(it.color)">{{ it.icon }}</span>
+                      <span class="txicon flat">{{ it.icon }}</span>
                       <div style="flex:1;min-width:0">
                         <div class="row between" style="gap:8px">
                           <span style="font-weight:600;font-size:13.5px">{{ it.label }}</span>
@@ -134,7 +174,7 @@ interface ItemForm {
       <div class="overlay" (click)="closeModal()">
         <div class="modal wide" (click)="$event.stopPropagation()">
           <div class="modal-head">
-            <h3>{{ editingId() ? 'Edit budget' : 'New custom budget' }}</h3>
+            <h3>{{ editingId() ? 'Edit budget' : (fromTemplate() ? 'Customise ' + form.name : 'New custom budget') }}</h3>
             <button class="btn btn-icon btn-ghost" (click)="closeModal()"><i class="bi bi-x-lg"></i></button>
           </div>
           <div class="modal-body">
@@ -143,30 +183,42 @@ interface ItemForm {
               <div class="field"><label>Planned monthly income (KES)</label><input class="input" type="number" [(ngModel)]="form.expectedIncome" /></div>
             </div>
 
-            <div class="row gap-8" style="align-items:center;margin:2px 0 12px">
-              <span class="tileicon" [style.background]="tint(form.color)" [style.color]="form.color" style="font-size:18px">{{ form.icon }}</span>
-              <span class="muted" style="font-size:12.5px">Give this budget its own icon &amp; theme colour</span>
+            <!-- Icon & colour: optional, collapsed to save space -->
+            <div class="row gap-8" style="align-items:center;margin:4px 0 2px">
+              <span class="tileicon flat" [style.color]="form.color" style="font-size:20px">{{ form.icon }}</span>
+              <button type="button" class="btn btn-sm btn-ghost" (click)="showIcon.set(!showIcon())">
+                <i class="bi" [class]="showIcon() ? 'bi-chevron-up' : 'bi-palette'"></i> {{ showIcon() ? 'Done' : 'Icon & colour (optional)' }}
+              </button>
             </div>
-            <app-icon-picker [(icon)]="form.icon" [(color)]="form.color" />
+            @if (showIcon()) { <app-icon-picker [(icon)]="form.icon" [(color)]="form.color" /> }
 
             <label class="field-label" style="margin-top:18px">Categories &amp; limits</label>
-            <div class="builder">
+
+            <!-- Quick add: search + one-click chips (your categories + presets) -->
+            <input class="input" [(ngModel)]="catSearch" (ngModelChange)="onSearch()" placeholder="Search to add — e.g. Rent, Airtime, Chama…" />
+            @if (filteredPicks().length) {
+              <div class="chip-wrap">
+                @for (p of filteredPicks(); track p.label) {
+                  <button type="button" class="pick-chip" [style.borderColor]="tint(p.color)" (click)="addPick(p)">
+                    <span>{{ p.icon }}</span> {{ p.label }} <i class="bi bi-plus"></i>
+                  </button>
+                }
+              </div>
+            }
+
+            <div class="builder mt-8">
               @for (it of form.items; track $index) {
                 <div class="builder-row">
-                  <select class="input" [ngModel]="it.categoryId" (ngModelChange)="onCategoryPick(it, $event)">
-                    <option [ngValue]="undefined">Custom label…</option>
-                    @for (c of expenseCategories(); track c.id) {
-                      <option [ngValue]="c.id">{{ c.icon }} {{ c.name }}</option>
-                    }
-                  </select>
-                  @if (!it.categoryId) {
-                    <input class="input" [(ngModel)]="it.label" placeholder="Label" style="max-width:150px" />
-                  }
-                  <input class="input num" type="number" [(ngModel)]="it.limitAmount" placeholder="Limit" style="max-width:130px" />
-                  <button class="btn btn-icon btn-ghost" (click)="removeItem($index)" aria-label="Remove"><i class="bi bi-x-lg"></i></button>
+                  <span class="txicon flat sm">{{ it.icon }}</span>
+                  <input class="input" [(ngModel)]="it.label" placeholder="Category" style="flex:1" />
+                  <input class="input num" type="number" [(ngModel)]="it.limitAmount" placeholder="Limit" style="max-width:120px" />
+                  <button class="btn btn-icon btn-ghost" (click)="duplicateItem($index)" title="Duplicate"><i class="bi bi-copy"></i></button>
+                  <button class="btn btn-icon btn-ghost" (click)="removeItem($index)" title="Remove"><i class="bi bi-x-lg"></i></button>
                 </div>
+              } @empty {
+                <div class="muted" style="font-size:12.5px">Add categories above, or start a blank one.</div>
               }
-              <button class="btn btn-sm mt-8" (click)="addItem()"><i class="bi bi-plus-lg"></i> Add category</button>
+              <button class="btn btn-sm mt-8" (click)="addItem()"><i class="bi bi-plus-lg"></i> Add blank category</button>
             </div>
 
             <div class="row between mt-16" style="padding-top:14px;border-top:1px solid var(--border)">
@@ -188,28 +240,45 @@ interface ItemForm {
     .plan-card .card-pad { display: flex; flex-direction: column; height: 100%; }
     .budget-card { --card-accent: var(--brand); }
     .budget-card.active-budget { border-color: color-mix(in srgb, var(--card-accent) 55%, var(--border)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--card-accent) 35%, transparent), var(--shadow); }
+    /* Flat icons — no background chip, the emoji sits on the card. */
+    .tileicon.flat, .txicon.flat { background: transparent !important; }
+    .txicon.flat.sm { width: 30px; height: 30px; font-size: 15px; }
     .items { display: flex; flex-direction: column; gap: 14px; }
     .item { display: flex; align-items: center; gap: 12px; }
     .field-label { font-size: 12.5px; font-weight: 640; color: var(--ink-2); display: block; margin: 6px 0 10px; }
     .builder { display: flex; flex-direction: column; gap: 10px; }
     .builder-row { display: flex; gap: 8px; align-items: center; }
-    .builder-row .input { flex: 1; }
+    .chip-wrap { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+    .pick-chip { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 560;
+      border: 1px solid var(--border-2); background: var(--surface); color: var(--ink-2); cursor: pointer; transition: all .12s; }
+    .pick-chip:hover { color: var(--ink); border-color: var(--brand); }
+    .pick-chip .bi-plus { color: var(--muted); font-size: 14px; }
+    .insights-card .insight { display: flex; align-items: flex-start; gap: 10px; font-size: 13.5px; padding: 7px 0; }
+    .insights-card .insight + .insight { border-top: 1px solid var(--border); }
+    .insights-card .insight .ic { flex: none; }
+    .insights-card .insight.positive { color: var(--income); }
+    .insights-card .insight.warning { color: var(--expense); }
+    .insights-card .insight.neutral { color: var(--ink-2); }
     .mb-2 { margin-bottom: 12px; }
     .text-end { text-align: right; }
   `],
 })
 export class BudgetsComponent implements OnInit {
   private api = inject(ApiService);
+  private money = inject(MoneyService);
+  private toast = inject(ToastService);
 
   budgets = signal<Budget[]>([]);
   templates = signal<BudgetTemplate[]>([]);
   categories = signal<Category[]>([]);
   loading = signal(true);
-  applying = signal(false);
   saving = signal(false);
 
   showModal = signal(false);
+  showIcon = signal(false);
+  fromTemplate = signal(false);
   editingId = signal<string | null>(null);
+  catSearch = '';
   form: { name: string; expectedIncome: number; icon: string; color: string; items: ItemForm[] } = { name: '', expectedIncome: 0, icon: '📋', color: '#10a37f', items: [] };
 
   expenseCategories = computed(() => this.categories().filter((c) => c.kind === 'EXPENSE'));
@@ -232,6 +301,59 @@ export class BudgetsComponent implements OnInit {
     return [...b].sort((x, y) => (y.isActive ? 1 : 0) - (x.isActive ? 1 : 0));
   }
 
+  // ---- insights (client-computed from the active budget) ----
+  insights = computed<Insight[]>(() => {
+    const b = this.budgets().find((x) => x.isActive) ?? this.budgets()[0];
+    if (!b || b.totalLimit <= 0) return [];
+    const out: Insight[] = [];
+    const used = Math.round((b.totalSpent / b.totalLimit) * 100);
+    const now = new Date();
+    const daysIn = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const pace = Math.round((now.getDate() / daysIn) * 100);
+
+    if (used > 100) {
+      out.push({ kind: 'warning', text: `You're over ${b.name} — ${used}% spent (${this.money.format(b.totalSpent - b.totalLimit)} over).` });
+    } else if (used >= 85) {
+      out.push({ kind: 'warning', text: `Getting close on ${b.name}: ${used}% used, ${this.money.format(b.totalRemaining)} left.` });
+    } else {
+      out.push({ kind: 'positive', text: `On track — ${used}% of ${b.name} used, ${this.money.format(b.totalRemaining)} still to spend.` });
+    }
+
+    if (used > pace + 15 && used <= 100) {
+      out.push({ kind: 'warning', text: `Spending faster than the month: ${used}% used but only ${pace}% through the month.` });
+    }
+
+    const over = b.items.filter((i) => i.over);
+    if (over.length) {
+      const worst = over.slice(0, 2).map((i) => i.label).join(' and ');
+      out.push({ kind: 'warning', text: `Over budget on ${worst}${over.length > 2 ? ` +${over.length - 2} more` : ''}.` });
+    }
+    return out;
+  });
+
+  // ---- quick-add picks (your categories + presets, minus already-added) ----
+  private picks(): Pick[] {
+    const cats: Pick[] = this.expenseCategories().map((c) => ({ label: c.name, icon: c.icon, color: c.color, categoryId: c.id }));
+    const names = new Set(cats.map((c) => c.label.toLowerCase()));
+    const presets = PRESETS.filter((p) => !names.has(p.label.toLowerCase()));
+    return [...cats, ...presets];
+  }
+
+  filteredPicks(): Pick[] {
+    const q = this.catSearch.trim().toLowerCase();
+    const added = new Set(this.form.items.map((i) => i.label.trim().toLowerCase()));
+    return this.picks()
+      .filter((p) => !added.has(p.label.toLowerCase()) && (!q || p.label.toLowerCase().includes(q)))
+      .slice(0, q ? 20 : 10);
+  }
+
+  onSearch(): void { /* triggers change detection so filteredPicks() re-evaluates */ }
+
+  addPick(p: Pick): void {
+    this.form.items.push({ categoryId: p.categoryId, label: p.label, limitAmount: 0, icon: p.icon, color: p.color });
+    this.catSearch = '';
+  }
+
   tint(color: string): string { return `color-mix(in srgb, ${color} 15%, transparent)`; }
   pct(a: number, b: number): number { return b > 0 ? Math.min((a / b) * 100, 100) : 0; }
   templateTotal(t: BudgetTemplate): number { return t.items.reduce((s, i) => s + i.limit, 0); }
@@ -240,31 +362,51 @@ export class BudgetsComponent implements OnInit {
     return { COMRADE: 'Comrade plan', HUSTLER: 'Hustler plan', CORPORATE: 'Corporate plan', CUSTOM: 'Custom plan' }[p] ?? p;
   }
 
-  applyTemplate(t: BudgetTemplate): void {
-    this.applying.set(true);
-    this.api.applyTemplate(t.planType).subscribe({
-      next: () => { this.applying.set(false); this.reload(); },
-      error: () => this.applying.set(false),
-    });
+  /** "Use this plan" now pre-fills the editable create form (nothing is saved
+   *  until the user confirms), instead of silently appending a budget. */
+  useTemplate(t: BudgetTemplate): void {
+    this.editingId.set(null);
+    this.fromTemplate.set(true);
+    this.showIcon.set(false);
+    this.catSearch = '';
+    this.form = {
+      name: t.name,
+      expectedIncome: t.expectedIncome,
+      icon: t.icon,
+      color: t.color,
+      items: t.items.map((i) => ({ categoryId: this.matchCategory(i.category), label: i.category, limitAmount: i.limit, icon: i.icon, color: i.color })),
+    };
+    this.showModal.set(true);
+  }
+
+  private matchCategory(name: string): string | undefined {
+    return this.expenseCategories().find((c) => c.name.toLowerCase() === name.toLowerCase())?.id;
   }
 
   setActive(b: Budget): void {
-    this.api.updateBudget(b.id, { isActive: true }).subscribe(() => this.reload());
+    this.api.updateBudget(b.id, { isActive: true }).subscribe(() => { this.toast.success(`${b.name} is now active`); this.reload(); });
   }
 
-  remove(b: Budget): void {
-    if (!confirm(`Delete "${b.name}"?`)) return;
-    this.api.deleteBudget(b.id).subscribe(() => this.reload());
+  async remove(b: Budget): Promise<void> {
+    const ok = await this.toast.confirm({ title: `Delete "${b.name}"?`, confirmText: 'Delete', danger: true });
+    if (!ok) return;
+    this.api.deleteBudget(b.id).subscribe(() => { this.toast.success('Budget deleted'); this.reload(); });
   }
 
   openCreate(): void {
     this.editingId.set(null);
-    this.form = { name: '', expectedIncome: 0, icon: '📋', color: '#10a37f', items: [{ label: '', limitAmount: 0, icon: '💸', color: '#64748b' }] };
+    this.fromTemplate.set(false);
+    this.showIcon.set(false);
+    this.catSearch = '';
+    this.form = { name: '', expectedIncome: 0, icon: '📋', color: '#10a37f', items: [] };
     this.showModal.set(true);
   }
 
   openEdit(b: Budget): void {
     this.editingId.set(b.id);
+    this.fromTemplate.set(false);
+    this.showIcon.set(false);
+    this.catSearch = '';
     this.form = {
       name: b.name,
       expectedIncome: b.expectedIncome,
@@ -278,13 +420,11 @@ export class BudgetsComponent implements OnInit {
   closeModal(): void { this.showModal.set(false); }
 
   addItem(): void { this.form.items.push({ label: '', limitAmount: 0, icon: '💸', color: '#64748b' }); }
-  removeItem(i: number): void { this.form.items.splice(i, 1); }
-
-  onCategoryPick(it: ItemForm, categoryId: string | undefined): void {
-    it.categoryId = categoryId;
-    const c = this.categories().find((x) => x.id === categoryId);
-    if (c) { it.label = c.name; it.icon = c.icon; it.color = c.color; }
+  duplicateItem(i: number): void {
+    const src = this.form.items[i];
+    this.form.items.splice(i + 1, 0, { ...src, categoryId: undefined, label: `${src.label} copy` });
   }
+  removeItem(i: number): void { this.form.items.splice(i, 1); }
 
   canSave(): boolean {
     return this.form.name.trim().length > 0 && this.form.items.some((i) => i.limitAmount > 0 && i.label.trim());
@@ -296,12 +436,11 @@ export class BudgetsComponent implements OnInit {
       .map((i) => ({ categoryId: i.categoryId, label: i.label.trim(), limitAmount: +i.limitAmount, icon: i.icon, color: i.color }));
     const body: any = { name: this.form.name.trim(), expectedIncome: +this.form.expectedIncome || 0, icon: this.form.icon, color: this.form.color, items, planType: 'CUSTOM', isActive: true };
     this.saving.set(true);
-    const req = this.editingId()
-      ? this.api.updateBudget(this.editingId()!, body)
-      : this.api.createBudget(body);
+    const editing = this.editingId();
+    const req = editing ? this.api.updateBudget(editing, body) : this.api.createBudget(body);
     req.subscribe({
-      next: () => { this.saving.set(false); this.showModal.set(false); this.reload(); },
-      error: () => this.saving.set(false),
+      next: () => { this.saving.set(false); this.showModal.set(false); this.toast.success(editing ? 'Budget updated' : `${body.name} created & set active`); this.reload(); },
+      error: () => { this.saving.set(false); this.toast.error('Could not save the budget'); },
     });
   }
 }

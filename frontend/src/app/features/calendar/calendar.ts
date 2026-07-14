@@ -34,11 +34,15 @@ function ymd(d: Date): string {
       <button class="btn btn-sm" (click)="today()"><i class="bi bi-calendar-check"></i> Today</button>
     </div>
 
-    <!-- Month totals -->
+    <!-- Totals for the selected day (or the whole month when none is picked) -->
+    <div class="between" style="margin:0 2px 10px">
+      <div class="muted" style="font-size:13px;font-weight:650">{{ statLabel() }}</div>
+      @if (focusedCell()) { <button class="btn btn-sm btn-ghost" (click)="clearFocus()"><i class="bi bi-x-lg"></i> Whole month</button> }
+    </div>
     <div class="grid cols-3" style="margin-bottom:18px">
-      <div class="card stat"><div class="label"><span class="tileicon" style="background:color-mix(in srgb,var(--income) 16%,transparent);color:var(--income)"><i class="bi bi-arrow-down-left"></i></span> Income</div><div class="value pos"><app-money [value]="monthIncome()" /></div></div>
-      <div class="card stat"><div class="label"><span class="tileicon" style="background:color-mix(in srgb,var(--expense) 16%,transparent);color:var(--expense)"><i class="bi bi-arrow-up-right"></i></span> Spending</div><div class="value neg"><app-money [value]="monthExpense()" /></div></div>
-      <div class="card stat"><div class="label"><span class="tileicon" style="background:var(--brand-soft);color:var(--brand-strong)"><i class="bi bi-wallet2"></i></span> Net</div><div class="value" [class.pos]="monthNet() >= 0" [class.neg]="monthNet() < 0"><app-money [value]="monthNet()" signed /></div></div>
+      <div class="card stat"><div class="label"><span class="tileicon" style="background:color-mix(in srgb,var(--income) 16%,transparent);color:var(--income)"><i class="bi bi-arrow-down-left"></i></span> Income</div><div class="value pos"><app-money [value]="statIncome()" /></div></div>
+      <div class="card stat"><div class="label"><span class="tileicon" style="background:color-mix(in srgb,var(--expense) 16%,transparent);color:var(--expense)"><i class="bi bi-arrow-up-right"></i></span> Spending</div><div class="value neg"><app-money [value]="statExpense()" /></div></div>
+      <div class="card stat"><div class="label"><span class="tileicon" style="background:var(--brand-soft);color:var(--brand-strong)"><i class="bi bi-wallet2"></i></span> Net</div><div class="value" [class.pos]="statNet() >= 0" [class.neg]="statNet() < 0"><app-money [value]="statNet()" signed /></div></div>
     </div>
 
     <div class="card card-pad cal">
@@ -56,7 +60,7 @@ function ymd(d: Date): string {
         </div>
         <div class="cal-grid">
           @for (c of cells(); track c.key) {
-            <button type="button" class="cal-cell" [class.out]="!c.inMonth" [class.today]="c.isToday"
+            <button type="button" class="cal-cell" [class.out]="!c.inMonth" [class.today]="c.isToday" [class.focused]="c.key === focusedKey()"
                     [style.background]="cellBg(c)" (click)="openDay(c)">
               <span class="cal-day">{{ c.day }}</span>
               @if (c.count) {
@@ -131,6 +135,7 @@ function ymd(d: Date): string {
     .cal-cell:hover { border-color: var(--brand); transform: translateY(-1px); box-shadow: var(--shadow); }
     .cal-cell.out { opacity: .4; }
     .cal-cell.today { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand); }
+    .cal-cell.focused { border-color: var(--brand-strong); box-shadow: 0 0 0 2px var(--brand); transform: translateY(-1px); }
     .cal-day { font-weight: 650; font-size: 13px; font-family: var(--num-font); }
     .cal-amts { margin-top: auto; display: flex; flex-direction: column; gap: 1px; font-size: 10.5px; font-weight: 700; font-family: var(--num-font); font-variant-numeric: tabular-nums; line-height: 1.25; }
     @keyframes cellIn { from { opacity: 0; transform: scale(.96); } }
@@ -165,6 +170,8 @@ export class CalendarComponent implements OnInit {
       : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
   );
   selected = signal<DayCell | null>(null);
+  /** Persistently highlighted day; drives the top figures + cell highlight. */
+  focusedKey = signal<string | null>(null);
   qa = { type: 'EXPENSE' as TransactionType, amount: null as number | null, categoryId: '', note: '' };
 
   private byDay = computed(() => {
@@ -207,6 +214,16 @@ export class CalendarComponent implements OnInit {
   monthNet = computed(() => this.monthIncome() - this.monthExpense());
   monthName = computed(() => MONTHS[this.cursor().m]);
 
+  /** The focused day (fresh from cells so it stays correct after edits). */
+  focusedCell = computed(() => {
+    const key = this.focusedKey();
+    return key ? this.cells().find((c) => c.key === key) ?? null : null;
+  });
+  statIncome = computed(() => this.focusedCell()?.income ?? this.monthIncome());
+  statExpense = computed(() => this.focusedCell()?.expense ?? this.monthExpense());
+  statNet = computed(() => { const f = this.focusedCell(); return f ? f.net : this.monthNet(); });
+  statLabel = computed(() => { const f = this.focusedCell(); return f ? fmtDate(f.key) : `${this.monthName()} ${this.cursor().y} · whole month`; });
+
   dayTx = computed(() => {
     const key = this.selected()?.key;
     if (!key) return [];
@@ -227,11 +244,14 @@ export class CalendarComponent implements OnInit {
     const { y, m } = this.cursor();
     const d = new Date(y, m + delta, 1);
     this.cursor.set({ y: d.getFullYear(), m: d.getMonth() });
+    this.focusedKey.set(null);
   }
-  today(): void { this.cursor.set({ y: this.now.getFullYear(), m: this.now.getMonth() }); }
+  today(): void { this.cursor.set({ y: this.now.getFullYear(), m: this.now.getMonth() }); this.focusedKey.set(null); }
+  clearFocus(): void { this.focusedKey.set(null); }
 
   openDay(c: DayCell): void {
     this.qa = { type: 'EXPENSE', amount: null, categoryId: '', note: '' };
+    this.focusedKey.set(c.key); // highlight persists after the modal closes
     this.selected.set(c);
   }
   quickAdd(key: string): void {
