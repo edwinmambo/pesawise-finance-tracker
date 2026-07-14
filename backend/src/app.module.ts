@@ -19,6 +19,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { ReportsModule } from './reports/reports.module';
 import { ImportsModule } from './imports/imports.module';
 import { RecurringModule } from './recurring/recurring.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { FxModule } from './common/fx.module';
 
 // In the single-service production image the built Angular app is copied to
@@ -83,6 +84,7 @@ const staticImports = existsSync(clientPath)
     ReportsModule,
     ImportsModule,
     RecurringModule,
+    NotificationsModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })

@@ -2,6 +2,7 @@ import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
+import { ToastService } from '../../core/toast.service';
 import { ThemeService, ACCENTS } from '../../core/theme.service';
 import { PrefsService } from '../../core/prefs.service';
 import { CURRENCIES } from '../../core/currency';
@@ -19,10 +20,10 @@ const ACCOUNT_ICON: Record<AccountType, string> = { MPESA: '📱', BANK: '🏦',
   template: `
     <div class="page-actions"><div><h2 class="section-title">Settings</h2><div class="muted">Accounts, categories &amp; profile</div></div></div>
 
-    <div class="row gap-8 wrap" style="margin-bottom:18px">
-      <button class="chip" [class.active]="tab() === 'accounts'" (click)="tab.set('accounts')">Accounts</button>
-      <button class="chip" [class.active]="tab() === 'categories'" (click)="tab.set('categories')">Categories</button>
-      <button class="chip" [class.active]="tab() === 'profile'" (click)="tab.set('profile')">Profile</button>
+    <div class="segmented settings-tabs" style="margin-bottom:18px">
+      <button [class.active]="tab() === 'accounts'" (click)="tab.set('accounts')"><i class="bi bi-bank"></i> Accounts</button>
+      <button [class.active]="tab() === 'categories'" (click)="tab.set('categories')"><i class="bi bi-tags"></i> Categories</button>
+      <button [class.active]="tab() === 'profile'" (click)="tab.set('profile')"><i class="bi bi-person"></i> Profile</button>
     </div>
 
     @switch (tab()) {
@@ -172,6 +173,8 @@ const ACCOUNT_ICON: Record<AccountType, string> = { MPESA: '📱', BANK: '🏦',
     }
   `,
   styles: [`
+    .settings-tabs { width: 100%; max-width: 460px; }
+    .settings-tabs button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
     .cat-item { padding: 8px 12px; border-radius: 10px; background: var(--surface-2); font-size: 13.5px; }
     .cat-dot { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; margin-right: 6px; font-size: 14px; vertical-align: middle; }
     .sys { font-size: 10px; color: var(--muted); margin-left: 4px; }
@@ -185,6 +188,7 @@ const ACCOUNT_ICON: Record<AccountType, string> = { MPESA: '📱', BANK: '🏦',
 })
 export class SettingsComponent implements OnInit {
   private api = inject(ApiService);
+  private toast = inject(ToastService);
   auth = inject(AuthService);
   theme = inject(ThemeService);
   prefs = inject(PrefsService);
@@ -230,9 +234,10 @@ export class SettingsComponent implements OnInit {
       error: () => this.saving.set(false),
     });
   }
-  remove(a: Account): void {
-    if (!confirm(`Delete account "${a.name}"? Its transactions will be kept but unlinked.`)) return;
-    this.api.deleteAccount(a.id).subscribe(() => this.reload());
+  async remove(a: Account): Promise<void> {
+    const ok = await this.toast.confirm({ title: `Delete account "${a.name}"?`, message: 'Its transactions are kept but unlinked.', confirmText: 'Delete', danger: true });
+    if (!ok) return;
+    this.api.deleteAccount(a.id).subscribe(() => { this.toast.success('Account deleted'); this.reload(); });
   }
 
   // --- Categories ---
@@ -258,10 +263,11 @@ export class SettingsComponent implements OnInit {
       error: () => this.saving.set(false),
     });
   }
-  removeCat(c: Category): void {
+  async removeCat(c: Category): Promise<void> {
     if (c.isSystem) return;
-    if (!confirm(`Delete category "${c.name}"?`)) return;
-    this.api.deleteCategory(c.id).subscribe(() => this.reload());
+    const ok = await this.toast.confirm({ title: `Delete category "${c.name}"?`, confirmText: 'Delete', danger: true });
+    if (!ok) return;
+    this.api.deleteCategory(c.id).subscribe(() => { this.toast.success('Category deleted'); this.reload(); });
   }
 
   // --- Profile ---

@@ -1,7 +1,10 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { UpperCasePipe } from '@angular/common';
 import { ApiService } from '../../core/api.service';
 import { MoneyService } from '../../core/money.service';
 import { ThemeService } from '../../core/theme.service';
+import { ToastService } from '../../core/toast.service';
 import { ReportData, ReportPeriod } from '../../core/models';
 import { MoneyComponent } from '../../shared/money';
 import { BarChartComponent } from '../../shared/bar-chart';
@@ -18,7 +21,7 @@ const CHANNEL_META: Record<string, { label: string; color: string; icon: string 
 @Component({
   selector: 'app-reports',
   standalone: true,
-  imports: [MoneyComponent, BarChartComponent, DonutComponent],
+  imports: [FormsModule, UpperCasePipe, MoneyComponent, BarChartComponent, DonutComponent],
   template: `
     <div class="page-actions">
       <div><h2 class="section-title">Reports</h2><div class="muted">Analyse your income and spending</div></div>
@@ -28,14 +31,43 @@ const CHANNEL_META: Record<string, { label: string; color: string; icon: string 
         <button class="chip" [class.active]="period() === '6'" (click)="period.set('6')">6 months</button>
         <button class="chip" [class.active]="period() === 'all'" (click)="period.set('all')">All time</button>
         <span class="divider"></span>
-        <button class="chip export" (click)="download('csv')" [disabled]="!!exporting()">
-          @if (exporting() === 'csv') { <span class="spin"></span> } @else { <i class="bi bi-filetype-csv"></i> } CSV
-        </button>
-        <button class="chip export" (click)="download('pdf')" [disabled]="!!exporting()">
-          @if (exporting() === 'pdf') { <span class="spin"></span> } @else { <i class="bi bi-filetype-pdf"></i> } PDF
+        <button class="chip export" (click)="openExport()" [disabled]="!!exporting()">
+          @if (exporting()) { <span class="spin"></span> Exporting… } @else { <i class="bi bi-download"></i> Export }
         </button>
       </div>
     </div>
+
+    <!-- Export dialog: pick format + period before downloading -->
+    @if (showExport()) {
+      <div class="overlay" (click)="showExport.set(false)">
+        <div class="modal" style="max-width:440px;width:100%" (click)="$event.stopPropagation()">
+          <div class="modal-head"><h3>Export report</h3><button class="btn btn-icon btn-ghost" (click)="showExport.set(false)"><i class="bi bi-x-lg"></i></button></div>
+          <div class="modal-body">
+            <div class="field">
+              <label>Format</label>
+              <div class="segmented" style="width:100%">
+                <button [class.active]="exportFormat() === 'csv'" (click)="exportFormat.set('csv')" style="flex:1"><i class="bi bi-filetype-csv"></i> CSV</button>
+                <button [class.active]="exportFormat() === 'pdf'" (click)="exportFormat.set('pdf')" style="flex:1"><i class="bi bi-filetype-pdf"></i> PDF</button>
+              </div>
+            </div>
+            <div class="field">
+              <label>Period</label>
+              <select class="input" [ngModel]="exportPeriod()" (ngModelChange)="exportPeriod.set($event)">
+                <option value="1">This month</option>
+                <option value="3">Last 3 months</option>
+                <option value="6">Last 6 months</option>
+                <option value="all">All time</option>
+              </select>
+            </div>
+            <div class="muted" style="font-size:12.5px">Downloads <b>{{ exportFormat() | uppercase }}</b> for <b>{{ periodLabel(exportPeriod()) }}</b>.</div>
+          </div>
+          <div class="modal-foot">
+            <button class="btn btn-ghost" (click)="showExport.set(false)">Cancel</button>
+            <button class="btn btn-primary" (click)="runExport()" [disabled]="!!exporting()"><i class="bi bi-download"></i> Download</button>
+          </div>
+        </div>
+      </div>
+    }
 
     @if (loading()) { <div class="spinner"></div> }
     @else {
@@ -128,11 +160,17 @@ export class ReportsComponent {
   private api = inject(ApiService);
   private money = inject(MoneyService);
   private theme = inject(ThemeService);
+  private toast = inject(ToastService);
 
   period = signal<ReportPeriod>('6');
   loading = signal(true);
   exporting = signal<'csv' | 'pdf' | null>(null);
   private data = signal<ReportData | null>(null);
+
+  // Export dialog state
+  showExport = signal(false);
+  exportFormat = signal<'csv' | 'pdf'>('csv');
+  exportPeriod = signal<ReportPeriod>('6');
 
   constructor() {
     // Refetch whenever the period changes (runs once on init too).
@@ -173,20 +211,35 @@ export class ReportsComponent {
     return kind === 'positive' ? '✅' : kind === 'warning' ? '⚠️' : '•';
   }
 
-  download(format: 'csv' | 'pdf'): void {
+  periodLabel(p: ReportPeriod): string {
+    return { '1': 'this month', '3': 'the last 3 months', '6': 'the last 6 months', all: 'all time' }[p] ?? p;
+  }
+
+  openExport(): void {
+    this.exportPeriod.set(this.period()); // default to what's on screen
+    this.exportFormat.set('csv');
+    this.showExport.set(true);
+  }
+
+  runExport(): void {
     if (this.exporting()) return;
+    const format = this.exportFormat();
+    const period = this.exportPeriod();
+    this.showExport.set(false);
     this.exporting.set(format);
-    this.api.downloadReport(this.period(), format).subscribe({
+    this.toast.info(`Preparing ${format.toUpperCase()} for ${this.periodLabel(period)}…`);
+    this.api.downloadReport(period, format).subscribe({
       next: (blob) => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `pesawise-report-${this.period()}.${format}`;
+        a.download = `pesawise-report-${period}.${format}`;
         a.click();
         URL.revokeObjectURL(url);
         this.exporting.set(null);
+        this.toast.success(`${format.toUpperCase()} downloaded`);
       },
-      error: () => this.exporting.set(null),
+      error: () => { this.exporting.set(null); this.toast.error('Export failed — please try again'); },
     });
   }
 }
