@@ -34,7 +34,7 @@ const ACCOUNT_ICON: Record<AccountType, string> = { MPESA: '📱', BANK: '🏦',
               <tr>
                 <td style="width:44px"><div class="txicon" [style.background]="tint(a.color)">{{ icon(a.type) }}</div></td>
                 <td><div style="font-weight:600">{{ a.name }}</div><div class="muted" style="font-size:12px">{{ a.institution || typeLabel(a.type) }}</div></td>
-                <td class="num" style="font-weight:650" [class.neg]="a.currentBalance < 0"><app-money [value]="a.currentBalance" /></td>
+                <td class="num" style="font-weight:650" [class.neg]="a.currentBalance < 0"><app-money [value]="a.currentBalance" column /></td>
                 <td style="width:60px" class="num"><button class="btn btn-ghost btn-sm btn-icon" (click)="remove(a)"><i class="bi bi-trash"></i></button></td>
               </tr>
             }
@@ -277,6 +277,6 @@ export class SettingsComponent implements OnInit {
   icon(t: AccountType): string { return ACCOUNT_ICON[t]; }
   typeLabel(t: AccountType): string { return t === 'MPESA' ? 'M-Pesa' : t.charAt(0) + t.slice(1).toLowerCase(); }
   initials(): string { const n = this.auth.user()?.name ?? ''; return n.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase() || 'U'; }
-  avatarBg(): string { const c = this.auth.user()?.avatarColor ?? 'var(--brand)'; return `linear-gradient(135deg, ${c}, color-mix(in srgb, ${c} 60%, #000))`; }
+  avatarBg(): string { const c = 'var(--brand)'; return `linear-gradient(135deg, ${c}, color-mix(in srgb, ${c} 60%, #000))`; }
   tint(color?: string): string { return color ? `color-mix(in srgb, ${color} 16%, transparent)` : 'var(--surface-2)'; }
 }

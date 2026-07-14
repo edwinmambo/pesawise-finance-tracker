@@ -138,22 +138,26 @@ $enable-negative-margins: true;
   --debt:     #f0a53a;
 }
 
-/* ---- Accent palettes (brand hue): Emerald (default), Ocean, Violet, Sunset -
-   Always-present data-accent attribute picks the hue; dark variants are a
-   touch lighter for contrast on the dark surfaces. --brand-soft/-grad derive. */
+/* ---- Colour themes (like a syntax theme) -----------------------------------
+   'default' keeps the classic green-income / red-expense. The accentuated
+   themes (Ocean, Violet, Sunset) recolour --income/--expense too, so the whole
+   app — numbers, lists, charts, Recent activity — shifts with the theme.
+   Each income/expense pair is a high-contrast, complementary combo (blue↔orange
+   etc.) that stays distinguishable and legible, incl. for colour-blind users.
+   Dark variants are a touch lighter for contrast on dark surfaces. */
 :root,
-:root[data-accent="emerald"] { --brand: #10a37f; --brand-strong: #0c8568; }
+:root[data-accent="default"] { --brand: #10a37f; --brand-strong: #0c8568; }
 :root[data-theme="dark"],
-:root[data-theme="dark"][data-accent="emerald"] { --brand: #17c199; --brand-strong: #46dcb2; }
+:root[data-theme="dark"][data-accent="default"] { --brand: #17c199; --brand-strong: #46dcb2; }
 
-:root[data-accent="ocean"]  { --brand: #1f7ae0; --brand-strong: #1462be; }
-:root[data-theme="dark"][data-accent="ocean"]  { --brand: #3f9bff; --brand-strong: #7bb8ff; }
+:root[data-accent="ocean"]  { --brand: #1f7ae0; --brand-strong: #1462be; --income: #1f7ae0; --expense: #ef8a3c; }
+:root[data-theme="dark"][data-accent="ocean"]  { --brand: #3f9bff; --brand-strong: #7bb8ff; --income: #4f9bff; --expense: #f7a862; }
 
-:root[data-accent="violet"] { --brand: #7c5cdb; --brand-strong: #6042c6; }
-:root[data-theme="dark"][data-accent="violet"] { --brand: #9a80f0; --brand-strong: #b7a4f6; }
+:root[data-accent="violet"] { --brand: #7c5cdb; --brand-strong: #6042c6; --income: #7c5cdb; --expense: #14a884; }
+:root[data-theme="dark"][data-accent="violet"] { --brand: #9a80f0; --brand-strong: #b7a4f6; --income: #9a80f0; --expense: #2dd4a6; }
 
-:root[data-accent="sunset"] { --brand: #e8722a; --brand-strong: #cc5a15; }
-:root[data-theme="dark"][data-accent="sunset"] { --brand: #f5934e; --brand-strong: #f8b483; }
+:root[data-accent="sunset"] { --brand: #e8722a; --brand-strong: #cc5a15; --income: #e8722a; --expense: #2f7fd6; }
+:root[data-theme="dark"][data-accent="sunset"] { --brand: #f5934e; --brand-strong: #f8b483; --income: #f5934e; --expense: #56a5e6; }
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -460,6 +464,13 @@ button { font-family: inherit; }
 .money.masked .num { filter: blur(7px); user-select: none; }
 .money.pos .num, .money.pos .cur { color: var(--income); }
 .money.neg .num, .money.neg .cur { color: var(--expense); }
+/* Accounting column: symbol flush-left, digits flush-right within a shared
+   min-width so amounts in a stacked list/table line up like a spreadsheet. */
+.money.col { display: inline-grid; grid-template-columns: auto 1fr; column-gap: .5em; min-width: 6.4em; }
+.money.col .cur { justify-self: start; }
+.money.col .num { justify-self: end; text-align: right; }
+/* Inside a right-aligned table cell, fill the column so digits sit at its edge. */
+.num > .money.col, td.num .money.col { display: grid; width: 100%; }
 .section-title { font-size: 15px; font-weight: 680; margin-bottom: 2px; }
 .page-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
 .page-actions h2 { font-size: 20px; }

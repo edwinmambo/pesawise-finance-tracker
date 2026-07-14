@@ -5,6 +5,7 @@ import { Account, Category, Channel, Transaction, TransactionType } from '../../
 import { MoneyComponent } from '../../shared/money';
 import { FocusTrapDirective } from '../../shared/focus-trap.directive';
 import { fmtDate, todayIso } from '../../core/format';
+import { ToastService } from '../../core/toast.service';
 
 const CHANNELS: Channel[] = ['MPESA', 'BANK', 'CASH', 'SACCO'];
 
@@ -76,7 +77,7 @@ interface TxForm {
                   <td><span class="badge">{{ channelLabel(t.channel) }}</span></td>
                   <td class="muted" style="font-size:12.5px">{{ date(t.date) }}</td>
                   <td class="num" style="font-weight:700">
-                    <app-money [value]="t.amount" [direction]="dir(t)" />
+                    <app-money [value]="t.amount" [direction]="dir(t)" column />
                   </td>
                   <td style="width:80px" class="num">
                     <button class="btn btn-ghost btn-sm btn-icon" (click)="openEdit(t)" title="Edit"><i class="bi bi-pencil"></i></button>
@@ -97,7 +98,7 @@ interface TxForm {
                 <span class="tx-title">{{ t.note || t.category?.name || 'Transaction' }}</span>
                 <span class="tx-sub">{{ t.category?.name || channelLabel(t.channel) }} · {{ date(t.date) }}</span>
               </span>
-              <app-money class="tx-amt" [value]="t.amount" [direction]="dir(t)" />
+              <app-money class="tx-amt" [value]="t.amount" [direction]="dir(t)" column />
             </button>
           }
         </div>
@@ -219,6 +220,7 @@ interface TxForm {
 })
 export class TransactionsComponent implements OnInit {
   private api = inject(ApiService);
+  private toast = inject(ToastService);
 
   all = signal<Transaction[]>([]);
   filtered = signal<Transaction[]>([]);
@@ -327,14 +329,17 @@ export class TransactionsComponent implements OnInit {
     });
   }
 
-  remove(t: Transaction): void {
-    if (!confirm('Delete this transaction?')) return;
-    this.api.deleteTransaction(t.id).subscribe(() => this.reload());
+  async remove(t: Transaction): Promise<void> {
+    const ok = await this.toast.confirm({ title: 'Delete this transaction?', confirmText: 'Delete', danger: true });
+    if (!ok) return;
+    this.api.deleteTransaction(t.id).subscribe(() => { this.toast.success('Transaction deleted'); this.reload(); });
   }
-  removeCurrent(): void {
+  async removeCurrent(): Promise<void> {
     const id = this.editingId();
-    if (!id || !confirm('Delete this transaction?')) return;
-    this.api.deleteTransaction(id).subscribe(() => { this.showModal.set(false); this.reload(); });
+    if (!id) return;
+    const ok = await this.toast.confirm({ title: 'Delete this transaction?', confirmText: 'Delete', danger: true });
+    if (!ok) return;
+    this.api.deleteTransaction(id).subscribe(() => { this.toast.success('Transaction deleted'); this.showModal.set(false); this.reload(); });
   }
 
   // ---- transfer ----

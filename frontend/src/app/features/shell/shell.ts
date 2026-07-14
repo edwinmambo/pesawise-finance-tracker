@@ -197,7 +197,9 @@ export class ShellComponent {
     return n.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase() || 'U';
   }
   avatarBg(): string {
-    const c = this.auth.user()?.avatarColor ?? 'var(--brand)';
+    // No custom photo yet, so the initials avatar follows the chosen accent —
+    // the same colour the charts use — for a consistent, themed identity.
+    const c = 'var(--brand)';
     return `linear-gradient(135deg, ${c}, color-mix(in srgb, ${c} 60%, #000))`;
   }
   greeting(): string {

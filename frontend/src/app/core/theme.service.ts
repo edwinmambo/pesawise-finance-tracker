@@ -1,10 +1,12 @@
 import { Injectable, signal } from '@angular/core';
 
 export type ThemeMode = 'light' | 'dark';
-export type Accent = 'emerald' | 'ocean' | 'violet' | 'sunset';
+/** A full colour scheme (like a syntax theme): 'default' keeps the classic
+ *  green-income / red-expense; the others recolour income/expense too. */
+export type Accent = 'default' | 'ocean' | 'violet' | 'sunset';
 
 export const ACCENTS: { id: Accent; name: string; swatch: string }[] = [
-  { id: 'emerald', name: 'Emerald', swatch: '#10a37f' },
+  { id: 'default', name: 'Default', swatch: '#10a37f' },
   { id: 'ocean', name: 'Ocean', swatch: '#1f7ae0' },
   { id: 'violet', name: 'Violet', swatch: '#7c5cdb' },
   { id: 'sunset', name: 'Sunset', swatch: '#e8722a' },
@@ -55,7 +57,7 @@ export class ThemeService {
 
   private initialAccent(): Accent {
     const saved = localStorage.getItem(ACCENT_KEY) as Accent | null;
-    return ACCENTS.some((a) => a.id === saved) ? (saved as Accent) : 'emerald';
+    return ACCENTS.some((a) => a.id === saved) ? (saved as Accent) : 'default';
   }
 
   private applyMode(mode: ThemeMode): void {
