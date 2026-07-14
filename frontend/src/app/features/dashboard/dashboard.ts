@@ -6,9 +6,8 @@ import { Budget, DashboardSummary } from '../../core/models';
 import { MoneyService } from '../../core/money.service';
 import { PrivacyService } from '../../core/privacy.service';
 import { ThemeService } from '../../core/theme.service';
-import { accentShades } from '../../shared/chart-colors';
+import { paletteColors, paletteColor, incomeExpensePair } from '../../shared/chart-colors';
 import { channelColor, channelLabel } from '../../core/channel-colors';
-import { bankColor } from '../../core/bank-colors';
 import { fmtDay } from '../../core/format';
 import { MoneyComponent } from '../../shared/money';
 import { BarChartComponent } from '../../shared/bar-chart';
@@ -31,25 +30,25 @@ import { RingComponent } from '../../shared/ring';
       </div>
       <div class="grid cols-4">
         <a routerLink="/reports" class="card stat hover">
-          <div class="label"><span class="tileicon" style="background:var(--brand-soft);color:var(--brand-strong)"><i class="bi bi-wallet2"></i></span> Net worth</div>
+          <div class="label"><span class="tileicon" [style.background]="tint(seriesColor(3))" [style.color]="seriesColor(3)"><i class="bi bi-wallet2"></i></span> Net worth</div>
           <div class="value"><app-money [value]="d.totals.netWorth" [hidden]="hideTiles()" /></div>
           <div class="delta" [class.up]="d.totals.monthNet >= 0" [class.down]="d.totals.monthNet < 0">
             <i class="bi" [class]="d.totals.monthNet >= 0 ? 'bi-arrow-up-right' : 'bi-arrow-down-right'"></i> <app-money [value]="d.totals.monthNet" signed [hidden]="hideTiles()" /> this month
           </div>
         </a>
         <a routerLink="/settings" class="card stat hover">
-          <div class="label"><span class="tileicon" style="background:color-mix(in srgb,var(--series-1) 15%,transparent);color:var(--series-1)"><i class="bi bi-bank"></i></span> Total balance</div>
+          <div class="label"><span class="tileicon" [style.background]="tint(seriesColor(0))" [style.color]="seriesColor(0)"><i class="bi bi-bank"></i></span> Total balance</div>
           <div class="value"><app-money [value]="d.totals.totalBalance" [hidden]="hideTiles()" /></div>
           <div class="delta muted">across {{ d.accounts.length }} accounts</div>
         </a>
         <a routerLink="/transactions" class="card stat hover">
-          <div class="label"><span class="tileicon" style="background:color-mix(in srgb,var(--income) 16%,transparent);color:var(--income)"><i class="bi bi-graph-up-arrow"></i></span> Income · this month</div>
-          <div class="value" style="color:var(--income)"><app-money [value]="d.totals.monthIncome" [hidden]="hideTiles()" /></div>
+          <div class="label"><span class="tileicon" [style.background]="tint(seriesColor(1))" [style.color]="seriesColor(1)"><i class="bi bi-graph-up-arrow"></i></span> Income · this month</div>
+          <div class="value" [style.color]="seriesColor(1)"><app-money [value]="d.totals.monthIncome" [hidden]="hideTiles()" /></div>
           <div class="delta muted">gross earnings</div>
         </a>
         <a routerLink="/transactions" class="card stat hover">
-          <div class="label"><span class="tileicon" style="background:color-mix(in srgb,var(--expense) 16%,transparent);color:var(--expense)"><i class="bi bi-graph-down-arrow"></i></span> Expenses · this month</div>
-          <div class="value" style="color:var(--expense)"><app-money [value]="d.totals.monthExpense" [hidden]="hideTiles()" /></div>
+          <div class="label"><span class="tileicon" [style.background]="tint(seriesColor(2))" [style.color]="seriesColor(2)"><i class="bi bi-graph-down-arrow"></i></span> Expenses · this month</div>
+          <div class="value" [style.color]="seriesColor(2)"><app-money [value]="d.totals.monthExpense" [hidden]="hideTiles()" /></div>
           <div class="delta muted">total spend</div>
         </a>
       </div>
@@ -60,8 +59,8 @@ import { RingComponent } from '../../shared/ring';
           <div class="card-head">
             <div><h3>Income vs Expenses</h3><div class="sub">Last 6 months</div></div>
             <div class="row gap-16">
-              <span class="row gap-6" style="font-size:12.5px;color:var(--ink-2)"><span class="dot" style="background:var(--income)"></span>Income</span>
-              <span class="row gap-6" style="font-size:12.5px;color:var(--ink-2)"><span class="dot" style="background:var(--expense)"></span>Expense</span>
+              <span class="row gap-6" style="font-size:12.5px;color:var(--ink-2)"><span class="dot" [style.background]="barColors().income"></span>Income</span>
+              <span class="row gap-6" style="font-size:12.5px;color:var(--ink-2)"><span class="dot" [style.background]="barColors().expense"></span>Expense</span>
               <button class="eye-btn" (click)="expand.set('bars')" aria-label="Expand"><i class="bi bi-arrows-fullscreen"></i></button>
             </div>
           </div>
@@ -119,7 +118,7 @@ import { RingComponent } from '../../shared/ring';
                     <span style="font-weight:600;font-size:13px">{{ it.icon }} {{ it.label }}</span>
                     <app-money [value]="it.spent" [hidden]="hideBudget()" />
                   </div>
-                  <div class="progress mt-8" [class.over]="it.over"><span [style.width.%]="pct(it.spent || 0, it.limitAmount)" [style.background]="it.over ? 'var(--critical)' : it.color"></span></div>
+                  <div class="progress mt-8" [class.over]="it.over"><span [style.width.%]="pct(it.spent || 0, it.limitAmount)" [style.background]="it.over ? 'var(--critical)' : seriesColor($index)"></span></div>
                 </div>
               }
             </div>
@@ -134,7 +133,7 @@ import { RingComponent } from '../../shared/ring';
           <div class="card-pad" style="display:flex;flex-direction:column;gap:16px">
             @for (g of d.savingsGoals.slice(0, 4); track g.id) {
               <a [routerLink]="['/savings']" class="row" style="gap:16px;color:var(--ink)">
-                <app-ring [progress]="g.progress" [color]="g.color" [size]="66" />
+                <app-ring [progress]="g.progress" [color]="seriesColor($index)" [size]="66" />
                 <div style="flex:1;min-width:0">
                   <div class="between"><b>{{ g.icon }} {{ g.name }}</b><app-money [value]="g.savedAmount" /></div>
                   <div class="muted" style="font-size:12.5px;margin-top:2px">of <app-money [value]="g.targetAmount" /> · <app-money [value]="g.remaining" /> to go</div>
@@ -149,8 +148,8 @@ import { RingComponent } from '../../shared/ring';
           <div class="card-pad" style="display:flex;flex-direction:column;gap:16px">
             @for (l of activeLoans(); track l.id) {
               <a routerLink="/loans" style="color:var(--ink)">
-                <div class="between"><b><i class="bi bi-bank2" [style.color]="lenderColor(l)"></i> {{ l.lender }}</b><app-money class="neg" [value]="l.outstanding" /></div>
-                <div class="progress mt-8"><span [style.width.%]="l.progress * 100" [style.background]="lenderColor(l)"></span></div>
+                <div class="between"><b><i class="bi bi-bank2" [style.color]="seriesColor($index)"></i> {{ l.lender }}</b><app-money class="neg" [value]="l.outstanding" /></div>
+                <div class="progress mt-8"><span [style.width.%]="l.progress * 100" [style.background]="seriesColor($index)"></span></div>
                 <div class="between muted" style="font-size:12px;margin-top:6px">
                   <span>{{ (l.progress * 100).toFixed(0) }}% repaid</span>
                   <span><app-money [value]="l.monthlyPayment" />/mo · {{ l.interestRate }}% {{ l.interestType | lowercase }}</span>
@@ -262,6 +261,9 @@ export class DashboardComponent implements OnInit {
   activeLoans = computed(() => (this.data()?.loans.filter((l) => l.status === 'ACTIVE') ?? []).slice(0, 4));
   totalDebt = computed(() => this.data()?.totals.totalDebt ?? 0);
 
+  /** Distinct income/expense colour pair for the chosen accent (reactive). */
+  barColors = computed(() => incomeExpensePair(this.theme.accent(), this.theme.mode()));
+
   donutSegments = computed<DonutSegment[]>(() => {
     const cats = this.data()?.categoryBreakdown ?? [];
     const top = cats.slice(0, 7).map((c) => ({ label: c.name, value: c.total, icon: c.icon }));
@@ -269,9 +271,9 @@ export class DashboardComponent implements OnInit {
     const items = rest.length
       ? [...top, { label: 'Other', value: rest.reduce((s, c) => s + c.total, 0), icon: '➕' }]
       : top;
-    // Shades of the chosen accent instead of a rainbow, largest slice first.
-    const shades = accentShades(this.theme.brand(), items.length);
-    return items.map((it, i) => ({ ...it, color: shades[i] }));
+    // Distinct, harmonious palette so slices are easy to tell apart at a glance.
+    const palette = paletteColors(this.theme.mode(), items.length);
+    return items.map((it, i) => ({ ...it, color: palette[i] }));
   });
 
   totalSpendShort = computed(() => {
@@ -283,7 +285,9 @@ export class DashboardComponent implements OnInit {
   pct(a: number, b: number): number { return b > 0 ? Math.min((a / b) * 100, 100) : 0; }
   pctInt(a: number, b: number): number { return b > 0 ? Math.round((a / b) * 100) : 0; }
   tint(color: string): string { return `color-mix(in srgb, ${color} 15%, transparent)`; }
-  lenderColor(l: { lender: string; lenderType: any }): string { return bankColor(l.lender, l.lenderType); }
+  /** Harmonious palette colour by index (reactive to light/dark) for the
+   *  dashboard's mixed-colour widgets. */
+  seriesColor(i: number): string { return paletteColor(this.theme.mode(), i); }
   txDir(type: string): 'in' | 'out' { return type === 'INCOME' || type === 'TRANSFER_IN' ? 'in' : 'out'; }
   chColor(ch: any): string { return channelColor(ch); }
   chLabel(ch: string): string { return channelLabel(ch); }

@@ -3,7 +3,7 @@ import { KesPipe } from '../core/kes.pipe';
 import { MoneyService } from '../core/money.service';
 import { PrivacyService } from '../core/privacy.service';
 import { ThemeService } from '../core/theme.service';
-import { incomeExpenseColors } from './chart-colors';
+import { incomeExpensePair } from './chart-colors';
 import { monthLabel } from '../core/format';
 
 export interface MonthPoint {
@@ -102,8 +102,8 @@ export class BarChartComponent {
 
   active = signal<number | null>(null);
   masked = computed(() => this.privacy.hidden());
-  /** High-contrast income/expense pair in the accent hue (reactive to theme). */
-  colors = computed(() => incomeExpenseColors(this.theme.brand()));
+  /** Distinct income/expense colour pair for the chosen accent (reactive). */
+  colors = computed(() => incomeExpensePair(this.theme.accent(), this.theme.mode()));
 
   /** Axis label — real (unmasked) value; blurred via CSS when balances hidden. */
   short(v: number): string { return this.money.formatShort(v, false); }

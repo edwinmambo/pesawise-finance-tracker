@@ -27,8 +27,7 @@ export class ThemeService {
   readonly mode = signal<ThemeMode>(this.initialMode());
   readonly accent = signal<Accent>(this.initialAccent());
 
-  /** Current accent base colour (hex), reactive to accent + mode changes.
-   *  Feed to accentShades() to theme charts. */
+  /** Current accent base colour (hex), reactive to accent + mode changes. */
   readonly brand = computed(() => BRAND[this.accent()][this.mode()]);
 
   /** Back-compat alias so existing `theme.theme()` callers keep working. */

@@ -6,7 +6,7 @@ import { ReportData, ReportPeriod } from '../../core/models';
 import { MoneyComponent } from '../../shared/money';
 import { BarChartComponent } from '../../shared/bar-chart';
 import { DonutComponent, DonutSegment } from '../../shared/donut';
-import { accentShades } from '../../shared/chart-colors';
+import { paletteColors, incomeExpensePair } from '../../shared/chart-colors';
 
 const CHANNEL_META: Record<string, { label: string; color: string; icon: string }> = {
   MPESA: { label: 'M-Pesa', color: '#1baf7a', icon: '📱' },
@@ -62,8 +62,8 @@ const CHANNEL_META: Record<string, { label: string; color: string; icon: string 
       <div class="card mt-24">
         <div class="card-head"><div><h3>Income vs Expenses</h3><div class="sub">Monthly</div></div>
           <div class="row gap-16">
-            <span class="row" style="gap:6px;font-size:12.5px;color:var(--ink-2)"><span class="dot" style="background:var(--income)"></span>Income</span>
-            <span class="row" style="gap:6px;font-size:12.5px;color:var(--ink-2)"><span class="dot" style="background:var(--expense)"></span>Expense</span>
+            <span class="row" style="gap:6px;font-size:12.5px;color:var(--ink-2)"><span class="dot" [style.background]="barColors().income"></span>Income</span>
+            <span class="row" style="gap:6px;font-size:12.5px;color:var(--ink-2)"><span class="dot" [style.background]="barColors().expense"></span>Expense</span>
           </div>
         </div>
         <div class="card-pad">
@@ -151,20 +151,23 @@ export class ReportsComponent {
   insights = computed(() => this.data()?.insights ?? []);
   expenseShort = computed(() => this.money.formatShort(this.totals().expense));
 
-  // Categories & channel breakdowns adopt shades of the chosen accent.
+  /** Distinct income/expense colour pair for the chosen accent (reactive). */
+  barColors = computed(() => incomeExpensePair(this.theme.accent(), this.theme.mode()));
+
+  // Categories & channel breakdowns use the distinct harmonious palette.
   categories = computed(() => {
     const cats = this.data()?.categories ?? [];
-    const shades = accentShades(this.theme.brand(), cats.length);
-    return cats.map((c, i) => ({ ...c, color: shades[i] }));
+    const palette = paletteColors(this.theme.mode(), cats.length);
+    return cats.map((c, i) => ({ ...c, color: palette[i] }));
   });
 
   channelSegments = computed<DonutSegment[]>(() => {
     const chans = this.data()?.channels ?? [];
-    const shades = accentShades(this.theme.brand(), chans.length);
+    const palette = paletteColors(this.theme.mode(), chans.length);
     return chans.map((c, i) => ({
       label: CHANNEL_META[c.channel]?.label ?? c.channel,
       value: c.total,
-      color: shades[i],
+      color: palette[i],
       icon: CHANNEL_META[c.channel]?.icon ?? '',
     }));
   });

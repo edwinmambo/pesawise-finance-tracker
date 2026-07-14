@@ -63,17 +63,44 @@ export function accentShades(base: string, count: number): string[] {
   });
 }
 
+import type { Accent, ThemeMode } from '../core/theme.service';
+
 /**
- * A high-contrast income / expense pair in the accent hue for the bar chart.
- * Same hue keeps it on-theme, but a wide lightness gap (light income vs. deep
- * expense) gives the two bars a strong, readable contrast — unlike a muted
- * same-lightness shade, which washed out. Works in light and dark mode because
- * it derives from the mode-resolved accent base.
+ * Two distinct, harmonious, high-contrast hues per accent for the income vs.
+ * expense bars — a two-colour combo (default emerald → green + blue, "with a
+ * kick") reads far quicker than two shades of one hue. Light/dark tuned so both
+ * themes stay legible.
  */
-export function incomeExpenseColors(base: string): { income: string; expense: string } {
-  const { h, s } = hexToHsl(base);
-  return {
-    income: hslToHex({ h, s: Math.min(s + 4, 100), l: 62 }),
-    expense: hslToHex({ h, s: Math.min(s + 12, 100), l: 34 }),
-  };
+const INCOME_EXPENSE: Record<Accent, Record<ThemeMode, { income: string; expense: string }>> = {
+  emerald: { light: { income: '#10a37f', expense: '#3b82f6' }, dark: { income: '#22c197', expense: '#60a5fa' } },
+  ocean:   { light: { income: '#1f7ae0', expense: '#0ea5a3' }, dark: { income: '#4f9bff', expense: '#2dd4bf' } },
+  violet:  { light: { income: '#7c5cdb', expense: '#e0559b' }, dark: { income: '#9a80f0', expense: '#f472b6' } },
+  sunset:  { light: { income: '#e8722a', expense: '#2f9bd6' }, dark: { income: '#f5934e', expense: '#56b4e6' } },
+};
+
+export function incomeExpensePair(accent: Accent, mode: ThemeMode): { income: string; expense: string } {
+  return INCOME_EXPENSE[accent][mode];
+}
+
+/**
+ * A curated qualitative palette for multi-series charts (category / channel
+ * donuts, budget snapshot, savings, overview). Colours are distinct yet
+ * balanced in tone so they "take to each other" — easy to glance and tell
+ * apart — with a lighter/brighter dark-mode set for contrast on dark surfaces.
+ */
+const PALETTE: Record<ThemeMode, string[]> = {
+  light: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1'],
+  dark:  ['#60a5fa', '#34d399', '#fbbf24', '#a78bfa', '#f472b6', '#2dd4bf', '#fb923c', '#818cf8'],
+};
+
+/** `n` palette colours, cycling if there are more series than the palette. */
+export function paletteColors(mode: ThemeMode, n: number): string[] {
+  const p = PALETTE[mode];
+  return Array.from({ length: n }, (_, i) => p[i % p.length]);
+}
+
+/** A single palette colour by index (cycles). */
+export function paletteColor(mode: ThemeMode, i: number): string {
+  const p = PALETTE[mode];
+  return p[((i % p.length) + p.length) % p.length];
 }

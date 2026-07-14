@@ -1,4 +1,4 @@
-import { accentShades } from './chart-colors';
+import { accentShades, incomeExpensePair, paletteColors, paletteColor } from './chart-colors';
 
 describe('accentShades', () => {
   it('returns the base for count <= 1', () => {
@@ -30,5 +30,30 @@ describe('accentShades', () => {
       const r = (n >> 16) & 255;
       expect(g).toBeGreaterThan(r);
     }
+  });
+});
+
+describe('incomeExpensePair', () => {
+  it('gives distinct income/expense colours per accent and mode', () => {
+    const p = incomeExpensePair('emerald', 'light');
+    expect(p.income).toMatch(/^#[0-9a-f]{6}$/);
+    expect(p.expense).toMatch(/^#[0-9a-f]{6}$/);
+    expect(p.income).not.toEqual(p.expense);
+    // dark variant differs from light
+    expect(incomeExpensePair('emerald', 'dark').income).not.toEqual(p.income);
+  });
+});
+
+describe('paletteColors / paletteColor', () => {
+  it('returns n distinct-leading colours and cycles beyond the palette', () => {
+    const five = paletteColors('light', 5);
+    expect(five).toHaveLength(5);
+    expect(new Set(five).size).toBe(5); // first 5 are distinct
+    // cycles: index 8 wraps to index 0
+    expect(paletteColor('light', 8)).toEqual(paletteColor('light', 0));
+  });
+
+  it('has a separate dark palette', () => {
+    expect(paletteColor('dark', 0)).not.toEqual(paletteColor('light', 0));
   });
 });
