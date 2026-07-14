@@ -113,7 +113,7 @@ interface NavLink { path: string; label: string; icon: string; exact?: boolean; 
     <!-- Profile avatar dropdown (Google-style) -->
     <ng-template #profileMenu>
       <div class="dropdown">
-        <button class="avatar-btn" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Profile menu">
+        <button class="avatar-btn" type="button" data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false" aria-label="Profile menu">
           <span class="avatar" [style.background]="avatarBg()">{{ initials() }}</span>
         </button>
         <div class="dropdown-menu dropdown-menu-end profile-menu">
@@ -125,7 +125,7 @@ interface NavLink { path: string; label: string; icon: string; exact?: boolean; 
             </div>
           </div>
 
-          <div class="pm-section">
+          <div class="pm-section" (click)="$event.stopPropagation()">
             <div class="pm-label">Appearance</div>
             <div class="segmented" style="width:100%">
               <button style="flex:1" [class.active]="theme.mode() === 'light'" (click)="theme.setMode('light')">☀️ Light</button>
@@ -138,7 +138,7 @@ interface NavLink { path: string; label: string; icon: string; exact?: boolean; 
             </div>
           </div>
 
-          <div class="pm-section">
+          <div class="pm-section" (click)="$event.stopPropagation()">
             <div class="pm-label">{{ i18n.t('common.language') }}</div>
             <div class="segmented" style="width:100%">
               <button style="flex:1" [class.active]="i18n.lang() === 'en'" (click)="i18n.setLang('en')">🇬🇧 English</button>
@@ -146,7 +146,7 @@ interface NavLink { path: string; label: string; icon: string; exact?: boolean; 
             </div>
           </div>
 
-          <button class="pm-item" (click)="privacy.toggle()">
+          <button class="pm-item" (click)="privacy.toggle(); $event.stopPropagation()">
             <i class="bi" [class]="privacy.hidden() ? 'bi-eye' : 'bi-eye-slash'"></i>
             {{ privacy.hidden() ? 'Show balances' : 'Hide balances' }}
           </button>

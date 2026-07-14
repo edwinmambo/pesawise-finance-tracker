@@ -254,13 +254,7 @@ export class DashboardComponent implements OnInit {
     if (h < 22) return 'Good evening';
     return 'Good night';
   }
-  greetEmoji(): string {
-    const h = new Date().getHours();
-    if (h < 12) return '☀️';
-    if (h < 17) return '🌤️';
-    if (h < 22) return '🌆';
-    return '🌙';
-  }
+  greetEmoji(): string { return '👋'; }
   data = signal<DashboardSummary | null>(null);
   activeBudget = signal<Budget | null>(null);
   loading = signal(true);

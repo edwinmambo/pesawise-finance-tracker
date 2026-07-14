@@ -30,7 +30,8 @@ const ACCOUNT_ICON: Record<AccountType, string> = { MPESA: '📱', BANK: '🏦',
       @case ('accounts') {
         <div class="card">
           <div class="card-head"><div><h3>Accounts</h3><div class="sub">{{ accounts().length }} accounts</div></div><button class="btn btn-primary btn-sm" (click)="openAccount()"><i class="bi bi-plus-lg"></i> Add account</button></div>
-          <div class="table-wrap"><table class="table" style="min-width:420px"><tbody>
+          <!-- Desktop table -->
+          <div class="table-wrap d-none d-md-block"><table class="table"><tbody>
             @for (a of accounts(); track a.id) {
               <tr style="cursor:pointer" (click)="openAccount(a)" title="Edit account">
                 <td style="width:44px"><div class="txicon" [style.background]="tint(a.color)">{{ icon(a.type) }}</div></td>
@@ -43,6 +44,20 @@ const ACCOUNT_ICON: Record<AccountType, string> = { MPESA: '📱', BANK: '🏦',
               </tr>
             }
           </tbody></table></div>
+          <!-- Mobile cards (no horizontal scroll) -->
+          <div class="acc-cards d-md-none">
+            @for (a of accounts(); track a.id) {
+              <div class="acc-card" (click)="openAccount(a)">
+                <span class="txicon" [style.background]="tint(a.color)">{{ icon(a.type) }}</span>
+                <div class="acc-main">
+                  <div class="acc-name">{{ a.name }}</div>
+                  <div class="muted" style="font-size:12px">{{ a.institution || typeLabel(a.type) }}</div>
+                </div>
+                <app-money class="acc-bal" [value]="a.currentBalance" [class.neg]="a.currentBalance < 0" column />
+                <button class="btn btn-ghost btn-sm btn-icon" (click)="remove(a); $event.stopPropagation()" aria-label="Delete"><i class="bi bi-trash"></i></button>
+              </div>
+            }
+          </div>
         </div>
       }
       @case ('categories') {
@@ -178,6 +193,12 @@ const ACCOUNT_ICON: Record<AccountType, string> = { MPESA: '📱', BANK: '🏦',
   styles: [`
     .settings-tabs { width: 100%; max-width: 460px; }
     .settings-tabs button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+    .acc-cards { display: flex; flex-direction: column; }
+    .acc-card { display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-bottom: 1px solid var(--border); cursor: pointer; }
+    .acc-card:last-child { border-bottom: none; }
+    .acc-main { flex: 1; min-width: 0; }
+    .acc-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .acc-bal { font-weight: 650; flex: none; }
     .cat-item { padding: 8px 12px; border-radius: 10px; background: var(--surface-2); font-size: 13.5px; }
     .cat-dot { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; margin-right: 6px; font-size: 14px; vertical-align: middle; }
     .sys { font-size: 10px; color: var(--muted); margin-left: 4px; }
