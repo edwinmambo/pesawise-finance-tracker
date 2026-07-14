@@ -4,6 +4,7 @@ import { LowerCasePipe } from '@angular/common';
 import { ApiService } from '../../core/api.service';
 import { InterestType, LenderType, Loan, Insight } from '../../core/models';
 import { MoneyComponent } from '../../shared/money';
+import { DatePickerComponent } from '../../shared/date-picker';
 import { MoneyService } from '../../core/money.service';
 import { ToastService } from '../../core/toast.service';
 import { fmtDate, todayIso } from '../../core/format';
@@ -22,7 +23,7 @@ interface LoanForm {
 @Component({
   selector: 'app-loans',
   standalone: true,
-  imports: [FormsModule, LowerCasePipe, MoneyComponent],
+  imports: [FormsModule, LowerCasePipe, MoneyComponent, DatePickerComponent],
   template: `
     <div class="page-actions">
       <div><h2 class="section-title">Loans</h2><div class="muted">Outstanding <app-money [value]="totalOutstanding()" /> across {{ activeCount() }} active loans</div></div>
@@ -120,8 +121,8 @@ interface LoanForm {
               <div class="field"><label>Interest type</label><select class="input" [(ngModel)]="lf.interestType"><option value="REDUCING">Reducing balance</option><option value="FLAT">Flat rate</option></select></div>
             </div>
             <div class="form-row">
-              <div class="field"><label>Start date</label><input class="input" type="date" [(ngModel)]="lf.startDate" /></div>
-              <div class="field"><label>Due date (optional)</label><input class="input" type="date" [(ngModel)]="lf.dueDate" /></div>
+              <div class="field"><label>Start date</label><app-date-picker [(value)]="lf.startDate" /></div>
+              <div class="field"><label>Due date (optional)</label><app-date-picker [(value)]="lf.dueDate" placeholder="Pick a date" /></div>
             </div>
           </div>
           <div class="modal-foot">
@@ -141,7 +142,7 @@ interface LoanForm {
             <div class="muted" style="font-size:12.5px;margin-bottom:14px">Outstanding <app-money [value]="pl.outstanding" /> · suggested <app-money [value]="pl.monthlyPayment" />/mo</div>
             <div class="form-row">
               <div class="field"><label>Amount (KES)</label><input class="input" type="number" [(ngModel)]="pay.amount" [placeholder]="pl.monthlyPayment" /></div>
-              <div class="field"><label>Date</label><input class="input" type="date" [(ngModel)]="pay.date" /></div>
+              <div class="field"><label>Date</label><app-date-picker [(value)]="pay.date" /></div>
             </div>
             <div class="field"><label>Note (optional)</label><input class="input" [(ngModel)]="pay.note" placeholder="e.g. Monthly installment" /></div>
           </div>

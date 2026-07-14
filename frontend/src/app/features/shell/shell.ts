@@ -55,8 +55,8 @@ interface NavLink { path: string; label: string; icon: string; exact?: boolean; 
         <!-- Desktop topbar -->
         <header class="topbar d-none d-lg-flex">
           <div>
-            <h1>{{ greeting() }}, {{ firstName() }} 👋</h1>
-            <div class="sub">Here's your financial picture today</div>
+            <h1>{{ todayLong() }}</h1>
+            <div class="sub">Welcome back, {{ firstName() }} 👋</div>
           </div>
           <div class="flex-grow-1"></div>
           <button class="btn btn-icon" (click)="privacy.toggle()" [title]="privacy.hidden() ? 'Show balances' : 'Hide balances'">
@@ -151,6 +151,7 @@ interface NavLink { path: string; label: string; icon: string; exact?: boolean; 
             {{ privacy.hidden() ? 'Show balances' : 'Hide balances' }}
           </button>
           <a class="pm-item" routerLink="/settings"><i class="bi bi-gear"></i> {{ i18n.t('nav.settings') }}</a>
+          <a class="pm-item" routerLink="/about"><i class="bi bi-info-circle"></i> {{ i18n.t('nav.about') }}</a>
           <button class="pm-item danger" (click)="auth.logout()"><i class="bi bi-box-arrow-left"></i> {{ i18n.t('action.logout') }}</button>
         </div>
       </div>
@@ -258,7 +259,6 @@ export class ShellComponent {
     { path: '/import', key: 'nav.import', icon: 'cloud-arrow-down-fill' },
     { path: '/recurring', key: 'nav.recurring', icon: 'arrow-repeat' },
     { path: '/settings', key: 'nav.settings', icon: 'gear-fill' },
-    { path: '/about', key: 'nav.about', icon: 'info-circle' },
   ];
 
   // Reactive to the language signal — flips EN⇄SW instantly.
@@ -284,5 +284,9 @@ export class ShellComponent {
     if (h < 12) return 'Good morning';
     if (h < 17) return 'Good afternoon';
     return 'Good evening';
+  }
+  /** Local long date, e.g. "Monday, 14 July". */
+  todayLong(): string {
+    return new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
   }
 }

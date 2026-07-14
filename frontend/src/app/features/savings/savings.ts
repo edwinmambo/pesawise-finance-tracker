@@ -3,20 +3,22 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
 import { ToastService } from '../../core/toast.service';
 import { SavingsGoal } from '../../core/models';
+import { CURRENCIES } from '../../core/currency';
 import { MoneyComponent } from '../../shared/money';
 import { RingComponent } from '../../shared/ring';
+import { DatePickerComponent } from '../../shared/date-picker';
 import { fmtDate, todayIso } from '../../core/format';
 
 const ICONS = ['🎯', '🛟', '🎓', '🎄', '🏠', '🚗', '✈️', '💍', '🏥', '📱', '💻', '🐖'];
 // Savings identity leads with violet (the --savings token) then the usual palette.
 const COLORS = ['#6b57d3', '#2a78d6', '#4a3aa7', '#16a34a', '#dc2626', '#eda100', '#e87ba4', '#eb6834'];
 
-interface GoalForm { name: string; targetAmount: number | null; targetDate: string; icon: string; color: string; }
+interface GoalForm { name: string; targetAmount: number | null; targetDate: string; icon: string; color: string; currency: string; }
 
 @Component({
   selector: 'app-savings',
   standalone: true,
-  imports: [FormsModule, MoneyComponent, RingComponent],
+  imports: [FormsModule, MoneyComponent, RingComponent, DatePickerComponent],
   template: `
     <div class="page-actions">
       <div><h2 class="section-title">💜 Savings goals</h2><div class="muted"><app-money [value]="totalSaved()" /> saved toward <app-money [value]="totalTarget()" /> in goals</div></div>
@@ -39,11 +41,11 @@ interface GoalForm { name: string; targetAmount: number | null; targetDate: stri
               <app-ring [progress]="g.progress" [color]="g.color" [size]="128" [thickness]="12" [sub]="'saved'" />
             </div>
             <div style="text-align:center">
-              <div class="saved-amt" style="font-size:19px;font-weight:720;letter-spacing:-.02em"><app-money [value]="g.savedAmount" /></div>
-              <div class="muted" style="font-size:12.5px">of <app-money [value]="g.targetAmount" /></div>
+              <div class="saved-amt" style="font-size:19px;font-weight:720;letter-spacing:-.02em"><app-money [value]="g.savedAmount" [currency]="g.currency" /></div>
+              <div class="muted" style="font-size:12.5px">of <app-money [value]="g.targetAmount" [currency]="g.currency" /></div>
             </div>
             <div class="between" style="font-size:12.5px;color:var(--ink-2)">
-              <span><app-money [value]="g.remaining" /> to go</span>
+              <span><app-money [value]="g.remaining" [currency]="g.currency" /> to go</span>
               @if (g.targetDate) { <span class="muted">by {{ date(g.targetDate) }}</span> }
             </div>
             <button class="btn sv-btn btn-sm" (click)="openContribute(g)"><i class="bi bi-plus-lg"></i> Add contribution</button>
@@ -62,9 +64,14 @@ interface GoalForm { name: string; targetAmount: number | null; targetDate: stri
           <div class="modal-body">
             <div class="field"><label>Goal name</label><input class="input" [(ngModel)]="gf.name" placeholder="e.g. Emergency Fund" /></div>
             <div class="form-row">
-              <div class="field"><label>Target amount (KES)</label><input class="input" type="number" [(ngModel)]="gf.targetAmount" placeholder="0" /></div>
-              <div class="field"><label>Target date (optional)</label><input class="input" type="date" [(ngModel)]="gf.targetDate" /></div>
+              <div class="field"><label>Target amount</label><input class="input" type="number" [(ngModel)]="gf.targetAmount" placeholder="0" /></div>
+              <div class="field"><label>Currency</label>
+                <select class="input" [(ngModel)]="gf.currency">
+                  @for (c of currencies; track c.code) { <option [value]="c.code">{{ c.code }} — {{ c.name }}</option> }
+                </select>
+              </div>
             </div>
+            <div class="field"><label>Target date (optional)</label><app-date-picker [(value)]="gf.targetDate" placeholder="Pick a date" /></div>
             <div class="field"><label>Icon</label>
               <div class="row wrap gap-8">
                 @for (i of icons; track i) { <button class="pick" [class.on]="gf.icon === i" (click)="gf.icon = i">{{ i }}</button> }
@@ -90,10 +97,10 @@ interface GoalForm { name: string; targetAmount: number | null; targetDate: stri
         <div class="modal" [style.--card-accent]="cg.color" style="max-width:420px;width:100%" (click)="$event.stopPropagation()">
           <div class="modal-head"><h3>{{ cg.icon }} {{ cg.name }}</h3><button class="btn btn-icon btn-ghost" (click)="contribGoal.set(null)"><i class="bi bi-x-lg"></i></button></div>
           <div class="modal-body">
-            <div class="muted" style="font-size:12.5px;margin-bottom:14px"><app-money [value]="cg.savedAmount" /> of <app-money [value]="cg.targetAmount" /> · <app-money [value]="cg.remaining" /> to go</div>
+            <div class="muted" style="font-size:12.5px;margin-bottom:14px"><app-money [value]="cg.savedAmount" [currency]="cg.currency" /> of <app-money [value]="cg.targetAmount" [currency]="cg.currency" /> · <app-money [value]="cg.remaining" [currency]="cg.currency" /> to go</div>
             <div class="form-row">
-              <div class="field"><label>Amount (KES)</label><input class="input" type="number" [(ngModel)]="contrib.amount" placeholder="0" /></div>
-              <div class="field"><label>Date</label><input class="input" type="date" [(ngModel)]="contrib.date" /></div>
+              <div class="field"><label>Amount ({{ cg.currency || 'KES' }})</label><input class="input" type="number" [(ngModel)]="contrib.amount" placeholder="0" /></div>
+              <div class="field"><label>Date</label><app-date-picker [(value)]="contrib.date" placeholder="Pick a date" /></div>
             </div>
             <div class="field"><label>Note (optional)</label><input class="input" [(ngModel)]="contrib.note" placeholder="e.g. Monthly saving" /></div>
           </div>
@@ -127,6 +134,7 @@ export class SavingsComponent implements OnInit {
 
   icons = ICONS;
   colors = COLORS;
+  currencies = CURRENCIES;
 
   showGoal = signal(false);
   editingId = signal<string | null>(null);
@@ -144,7 +152,7 @@ export class SavingsComponent implements OnInit {
   totalSaved(): number { return this.goals().reduce((s, g) => s + g.savedAmount, 0); }
   totalTarget(): number { return this.goals().reduce((s, g) => s + g.targetAmount, 0); }
 
-  blankGoal(): GoalForm { return { name: '', targetAmount: null, targetDate: '', icon: '🎯', color: COLORS[0] }; }
+  blankGoal(): GoalForm { return { name: '', targetAmount: null, targetDate: '', icon: '🎯', color: COLORS[0], currency: 'KES' }; }
   /** Pick the first palette colour not already used by a goal (reuse only when
    *  every colour is taken), so each new goal reads distinctly. */
   private nextColor(): string {
@@ -154,7 +162,7 @@ export class SavingsComponent implements OnInit {
   openNew(): void { this.editingId.set(null); this.gf = { ...this.blankGoal(), color: this.nextColor() }; this.showGoal.set(true); }
   openEdit(g: SavingsGoal): void {
     this.editingId.set(g.id);
-    this.gf = { name: g.name, targetAmount: g.targetAmount, targetDate: g.targetDate ?? '', icon: g.icon, color: g.color };
+    this.gf = { name: g.name, targetAmount: g.targetAmount, targetDate: g.targetDate ?? '', icon: g.icon, color: g.color, currency: g.currency ?? 'KES' };
     this.showGoal.set(true);
   }
 
@@ -163,7 +171,7 @@ export class SavingsComponent implements OnInit {
     this.saving.set(true);
     const body = {
       name: this.gf.name, targetAmount: Number(this.gf.targetAmount),
-      targetDate: this.gf.targetDate || undefined, icon: this.gf.icon, color: this.gf.color,
+      targetDate: this.gf.targetDate || undefined, icon: this.gf.icon, color: this.gf.color, currency: this.gf.currency || 'KES',
     };
     const editing = this.editingId();
     const req = editing ? this.api.updateGoal(editing, body) : this.api.createGoal(body);

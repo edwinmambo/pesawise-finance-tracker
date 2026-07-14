@@ -100,6 +100,7 @@ export interface SavingsGoal {
   targetDate?: string;
   icon: string;
   color: string;
+  currency?: string;
   contributions?: SavingsContribution[];
   // computed
   savedAmount: number;

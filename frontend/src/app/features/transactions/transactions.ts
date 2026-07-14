@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
 import { Account, Category, Channel, Transaction, TransactionType } from '../../core/models';
 import { MoneyComponent } from '../../shared/money';
+import { DatePickerComponent } from '../../shared/date-picker';
 import { FocusTrapDirective } from '../../shared/focus-trap.directive';
 import { fmtDate, todayIso } from '../../core/format';
 import { ToastService } from '../../core/toast.service';
@@ -23,7 +24,7 @@ interface TxForm {
 @Component({
   selector: 'app-transactions',
   standalone: true,
-  imports: [FormsModule, MoneyComponent, FocusTrapDirective],
+  imports: [FormsModule, MoneyComponent, DatePickerComponent, FocusTrapDirective],
   template: `
     <div class="page-actions">
       <div>
@@ -119,7 +120,7 @@ interface TxForm {
             </div>
             <div class="form-row">
               <div class="field"><label>Amount (KES)</label><input class="input" type="number" min="0" [(ngModel)]="form.amount" placeholder="0" /></div>
-              <div class="field"><label>Date</label><input class="input" type="date" [(ngModel)]="form.date" /></div>
+              <div class="field"><label>Date</label><app-date-picker [(value)]="form.date" /></div>
             </div>
             <div class="form-row">
               <div class="field"><label>Channel</label>
@@ -177,7 +178,7 @@ interface TxForm {
             </div>
             <div class="form-row">
               <div class="field"><label>Amount (from account's currency)</label><input class="input" type="number" min="0" [(ngModel)]="xfer.amount" placeholder="0" /></div>
-              <div class="field"><label>Date</label><input class="input" type="date" [(ngModel)]="xfer.date" /></div>
+              <div class="field"><label>Date</label><app-date-picker [(value)]="xfer.date" /></div>
             </div>
             <div class="field"><label>Note (optional)</label><input class="input" [(ngModel)]="xfer.note" placeholder="e.g. Move to savings" /></div>
             @if (xferCrossCurrency()) { <div class="muted" style="font-size:12px">Cross-currency transfer — the destination amount is converted at the current rate.</div> }

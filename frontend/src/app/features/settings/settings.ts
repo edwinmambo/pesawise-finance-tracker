@@ -183,7 +183,11 @@ const ACCOUNT_ICON: Record<AccountType, string> = { MPESA: '📱', BANK: '🏦',
     .sys { font-size: 10px; color: var(--muted); margin-left: 4px; }
     .prof-row { padding: 14px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
     .avatar-lg { width: 56px; height: 56px; border-radius: 50%; color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 18px; }
-    .acc-swatch { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform .08s; }
+    .acc-swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform .08s; }
+    @media (max-width: 600px) {
+      .modal-body .field { margin-bottom: 10px; }
+      .acc-swatch { width: 24px; height: 24px; }
+    }
     .acc-swatch:hover { transform: scale(1.1); }
     .acc-swatch.sel { border-color: var(--ink); box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px currentColor; }
     .cat-preview { display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--surface-2); border-radius: 12px; margin-bottom: 16px; }
