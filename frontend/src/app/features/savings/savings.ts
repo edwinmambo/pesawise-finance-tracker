@@ -30,7 +30,10 @@ interface GoalForm { name: string; targetAmount: number | null; targetDate: stri
           <div class="card card-pad sv-card" [style.--card-accent]="g.color" style="display:flex;flex-direction:column;gap:14px">
             <div class="between">
               <div style="font-weight:700;font-size:15px">{{ g.icon }} {{ g.name }}</div>
-              <button class="btn btn-ghost btn-sm btn-icon" (click)="remove(g)"><i class="bi bi-trash"></i></button>
+              <div class="row gap-6">
+                <button class="btn btn-ghost btn-sm btn-icon" (click)="openEdit(g)" title="Edit goal"><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-ghost btn-sm btn-icon" (click)="remove(g)" title="Delete goal"><i class="bi bi-trash"></i></button>
+              </div>
             </div>
             <div style="display:flex;justify-content:center">
               <app-ring [progress]="g.progress" [color]="g.color" [size]="128" [thickness]="12" [sub]="'saved'" />
@@ -55,7 +58,7 @@ interface GoalForm { name: string; targetAmount: number | null; targetDate: stri
     @if (showGoal()) {
       <div class="overlay" (click)="showGoal.set(false)">
         <div class="modal" [style.--card-accent]="gf.color" (click)="$event.stopPropagation()">
-          <div class="modal-head"><h3>New savings goal</h3><button class="btn btn-icon btn-ghost" (click)="showGoal.set(false)"><i class="bi bi-x-lg"></i></button></div>
+          <div class="modal-head"><h3>{{ editingId() ? 'Edit goal' : 'New savings goal' }}</h3><button class="btn btn-icon btn-ghost" (click)="showGoal.set(false)"><i class="bi bi-x-lg"></i></button></div>
           <div class="modal-body">
             <div class="field"><label>Goal name</label><input class="input" [(ngModel)]="gf.name" placeholder="e.g. Emergency Fund" /></div>
             <div class="form-row">
@@ -75,7 +78,7 @@ interface GoalForm { name: string; targetAmount: number | null; targetDate: stri
           </div>
           <div class="modal-foot">
             <button class="btn btn-ghost" (click)="showGoal.set(false)">Cancel</button>
-            <button class="btn sv-btn" (click)="saveGoal()" [disabled]="!gf.name || !gf.targetAmount || saving()">Create goal</button>
+            <button class="btn sv-btn" (click)="saveGoal()" [disabled]="!gf.name || !gf.targetAmount || saving()">{{ saving() ? 'Saving…' : (editingId() ? 'Save changes' : 'Create goal') }}</button>
           </div>
         </div>
       </div>
@@ -107,8 +110,8 @@ interface GoalForm { name: string; targetAmount: number | null; targetDate: stri
        the page's violet --savings identity for buttons/modals outside a card. */
     .sv-card { border-top: 3px solid var(--card-accent, var(--savings)); }
     .saved-amt { color: var(--card-accent, var(--savings)); }
-    .sv-btn { background: var(--card-accent, var(--savings)); border-color: var(--card-accent, var(--savings)); color: #fff; box-shadow: 0 6px 16px color-mix(in srgb, var(--card-accent, var(--savings)) 30%, transparent); }
-    .sv-btn:hover { background: color-mix(in srgb, var(--card-accent, var(--savings)) 86%, #000); border-color: color-mix(in srgb, var(--card-accent, var(--savings)) 86%, #000); }
+    .sv-btn { background: var(--card-accent, var(--brand)); border-color: var(--card-accent, var(--brand)); color: #fff; box-shadow: 0 6px 16px color-mix(in srgb, var(--card-accent, var(--brand)) 30%, transparent); }
+    .sv-btn:hover { background: color-mix(in srgb, var(--card-accent, var(--brand)) 86%, #000); border-color: color-mix(in srgb, var(--card-accent, var(--brand)) 86%, #000); }
     .pick { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--border-2); background: var(--surface); font-size: 18px; cursor: pointer; }
     .pick.on { border-color: var(--savings); background: color-mix(in srgb, var(--savings) 14%, var(--surface)); }
     .swatch { width: 32px; height: 32px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
@@ -126,6 +129,7 @@ export class SavingsComponent implements OnInit {
   colors = COLORS;
 
   showGoal = signal(false);
+  editingId = signal<string | null>(null);
   gf: GoalForm = this.blankGoal();
 
   contribGoal = signal<SavingsGoal | null>(null);
@@ -147,17 +151,25 @@ export class SavingsComponent implements OnInit {
     const used = new Set(this.goals().map((g) => g.color));
     return COLORS.find((c) => !used.has(c)) ?? COLORS[this.goals().length % COLORS.length];
   }
-  openNew(): void { this.gf = { ...this.blankGoal(), color: this.nextColor() }; this.showGoal.set(true); }
+  openNew(): void { this.editingId.set(null); this.gf = { ...this.blankGoal(), color: this.nextColor() }; this.showGoal.set(true); }
+  openEdit(g: SavingsGoal): void {
+    this.editingId.set(g.id);
+    this.gf = { name: g.name, targetAmount: g.targetAmount, targetDate: g.targetDate ?? '', icon: g.icon, color: g.color };
+    this.showGoal.set(true);
+  }
 
   saveGoal(): void {
     if (!this.gf.name || !this.gf.targetAmount) return;
     this.saving.set(true);
-    this.api.createGoal({
+    const body = {
       name: this.gf.name, targetAmount: Number(this.gf.targetAmount),
       targetDate: this.gf.targetDate || undefined, icon: this.gf.icon, color: this.gf.color,
-    }).subscribe({
-      next: () => { this.saving.set(false); this.showGoal.set(false); this.toast.success('Savings goal created'); this.reload(); },
-      error: () => { this.saving.set(false); this.toast.error('Could not create the goal'); },
+    };
+    const editing = this.editingId();
+    const req = editing ? this.api.updateGoal(editing, body) : this.api.createGoal(body);
+    req.subscribe({
+      next: () => { this.saving.set(false); this.showGoal.set(false); this.toast.success(editing ? 'Goal updated' : 'Savings goal created'); this.reload(); },
+      error: () => { this.saving.set(false); this.toast.error('Could not save the goal'); },
     });
   }
 

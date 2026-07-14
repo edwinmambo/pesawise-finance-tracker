@@ -128,6 +128,7 @@ export interface Budget {
   expectedIncome: number;
   icon: string;
   color: string;
+  currency?: string;
   isActive: boolean;
   items: BudgetItem[];
   // computed

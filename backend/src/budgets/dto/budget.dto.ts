@@ -54,6 +54,10 @@ export class CreateBudgetDto {
   color?: string;
 
   @IsOptional()
+  @IsString()
+  currency?: string;
+
+  @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 

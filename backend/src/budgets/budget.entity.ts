@@ -48,6 +48,10 @@ export class Budget {
   @Column({ default: '#10a37f' })
   color: string;
 
+  /** Display currency for this budget's amounts (set at creation, then fixed). */
+  @Column({ default: 'KES' })
+  currency: string;
+
   /** Only one budget is "active" (drives the dashboard widget) at a time. */
   @Column({ default: true })
   isActive: boolean;

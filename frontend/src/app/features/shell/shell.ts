@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
@@ -6,6 +6,7 @@ import { ThemeService, ACCENTS } from '../../core/theme.service';
 import { PrivacyService } from '../../core/privacy.service';
 import { I18nService } from '../../core/i18n.service';
 import { NotificationsService } from '../../core/notifications.service';
+import { AppNotification } from '../../core/models';
 
 interface NavLink { path: string; label: string; icon: string; exact?: boolean; }
 
@@ -46,7 +47,7 @@ interface NavLink { path: string; label: string; icon: string; exact?: boolean; 
             <button class="btn btn-icon" (click)="privacy.toggle()" [attr.aria-label]="privacy.hidden() ? 'Show balances' : 'Hide balances'">
               <i class="bi" [class]="privacy.hidden() ? 'bi-eye-slash' : 'bi-eye'"></i>
             </button>
-            <ng-container [ngTemplateOutlet]="bellMenu"></ng-container>
+            <ng-container [ngTemplateOutlet]="bellBtn"></ng-container>
             <ng-container [ngTemplateOutlet]="profileMenu"></ng-container>
           </div>
         </nav>
@@ -61,7 +62,7 @@ interface NavLink { path: string; label: string; icon: string; exact?: boolean; 
           <button class="btn btn-icon" (click)="privacy.toggle()" [title]="privacy.hidden() ? 'Show balances' : 'Hide balances'">
             <i class="bi" [class]="privacy.hidden() ? 'bi-eye-slash' : 'bi-eye'"></i>
           </button>
-          <ng-container [ngTemplateOutlet]="bellMenu"></ng-container>
+          <ng-container [ngTemplateOutlet]="bellBtn"></ng-container>
           <ng-container [ngTemplateOutlet]="profileMenu"></ng-container>
         </header>
 
@@ -71,37 +72,43 @@ interface NavLink { path: string; label: string; icon: string; exact?: boolean; 
       </div>
     </div>
 
-    <!-- Notification bell -->
-    <ng-template #bellMenu>
-      <div class="dropdown">
-        <button class="btn btn-icon bell-btn" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-label="Notifications" (click)="notif.refresh()">
-          <i class="bi bi-bell"></i>
-          @if (notif.unread()) { <span class="bell-badge">{{ notif.unread() > 9 ? '9+' : notif.unread() }}</span> }
-        </button>
-        <div class="dropdown-menu dropdown-menu-end notif-menu">
-          <div class="notif-head">
-            <b>Notifications</b>
-            @if (notif.unread()) { <button class="btn btn-sm btn-ghost" (click)="notif.markAllRead()">Mark all read</button> }
-          </div>
-          @if (notif.items().length) {
-            <div class="notif-list">
-              @for (n of notif.items(); track n.id) {
-                <a class="notif-item" [class.unread]="!n.read" [routerLink]="n.link || null" (click)="notif.markRead(n)">
-                  <span class="notif-ic">{{ n.icon }}</span>
-                  <span class="notif-main">
-                    <span class="notif-title">{{ n.title }}</span>
-                    <span class="notif-body">{{ n.body }}</span>
-                  </span>
-                  @if (!n.read) { <span class="notif-dot"></span> }
-                </a>
-              }
-            </div>
-          } @else {
-            <div class="notif-empty">You're all caught up 🎉</div>
-          }
-        </div>
-      </div>
+    <!-- Notification bell button (opens the shared flyout panel) -->
+    <ng-template #bellBtn>
+      <button class="btn btn-icon bell-btn" type="button" aria-label="Notifications" (click)="toggleBell()">
+        <i class="bi bi-bell"></i>
+        @if (notif.unread()) { <span class="bell-badge">{{ notif.unread() > 9 ? '9+' : notif.unread() }}</span> }
+      </button>
     </ng-template>
+
+    <!-- Notification flyout — a self-controlled fixed panel so nothing clips it. -->
+    @if (bellOpen()) {
+      <div class="notif-backdrop" (click)="bellOpen.set(false)"></div>
+      <div class="notif-panel" role="dialog" aria-label="Notifications">
+        <div class="notif-head">
+          <b>Notifications</b>
+          <div class="row gap-8">
+            @if (notif.unread()) { <button class="btn btn-sm btn-ghost" (click)="notif.markAllRead()">Mark all read</button> }
+            <button class="btn btn-icon btn-ghost btn-sm" (click)="bellOpen.set(false)" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+          </div>
+        </div>
+        @if (notif.items().length) {
+          <div class="notif-list">
+            @for (n of notif.items(); track n.id) {
+              <a class="notif-item" [class.unread]="!n.read" [routerLink]="n.link || null" (click)="onNotifClick(n)">
+                <span class="notif-ic">{{ n.icon }}</span>
+                <span class="notif-main">
+                  <span class="notif-title">{{ n.title }}</span>
+                  <span class="notif-body">{{ n.body }}</span>
+                </span>
+                @if (!n.read) { <span class="notif-dot"></span> }
+              </a>
+            }
+          </div>
+        } @else {
+          <div class="notif-empty">You're all caught up 🎉</div>
+        }
+      </div>
+    }
 
     <!-- Profile avatar dropdown (Google-style) -->
     <ng-template #profileMenu>
@@ -182,9 +189,14 @@ interface NavLink { path: string; label: string; icon: string; exact?: boolean; 
     .bell-badge { position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px;
       background: var(--expense); color: #fff; font-size: 10px; font-weight: 700; display: grid; place-items: center; line-height: 1;
       box-shadow: 0 0 0 2px var(--surface); }
-    .notif-menu { width: 340px; max-width: calc(100vw - 24px); padding: 0; overflow: hidden; }
-    .notif-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border); }
-    .notif-list { max-height: 380px; overflow-y: auto; }
+    .notif-backdrop { position: fixed; inset: 0; z-index: 1090; }
+    .notif-panel { position: fixed; top: 62px; right: 16px; z-index: 1091; width: 360px; max-width: calc(100vw - 24px);
+      max-height: min(70vh, 560px); overflow: hidden; display: flex; flex-direction: column;
+      background: var(--surface); border: 1px solid var(--border-2); border-radius: 16px; box-shadow: var(--shadow-lg);
+      animation: pop .16s ease; }
+    @media (max-width: 600px) { .notif-panel { top: 60px; left: 12px; right: 12px; width: auto; } }
+    .notif-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border); flex: none; }
+    .notif-list { overflow-y: auto; }
     .notif-item { display: flex; align-items: flex-start; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--border); text-decoration: none; color: var(--ink); position: relative; }
     .notif-item:last-child { border-bottom: none; }
     .notif-item:hover { background: var(--surface-2); }
@@ -222,6 +234,17 @@ export class ShellComponent {
   privacy = inject(PrivacyService);
   i18n = inject(I18nService);
   notif = inject(NotificationsService);
+  bellOpen = signal(false);
+
+  toggleBell(): void {
+    const open = !this.bellOpen();
+    this.bellOpen.set(open);
+    if (open) this.notif.refresh();
+  }
+  onNotifClick(n: AppNotification): void {
+    this.notif.markRead(n);
+    this.bellOpen.set(false);
+  }
   accents = ACCENTS;
 
   private baseLinks: (Omit<NavLink, 'label'> & { key: string })[] = [
@@ -235,6 +258,7 @@ export class ShellComponent {
     { path: '/import', key: 'nav.import', icon: 'cloud-arrow-down-fill' },
     { path: '/recurring', key: 'nav.recurring', icon: 'arrow-repeat' },
     { path: '/settings', key: 'nav.settings', icon: 'gear-fill' },
+    { path: '/about', key: 'nav.about', icon: 'info-circle' },
   ];
 
   // Reactive to the language signal — flips EN⇄SW instantly.

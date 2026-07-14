@@ -32,11 +32,14 @@ const ACCOUNT_ICON: Record<AccountType, string> = { MPESA: '📱', BANK: '🏦',
           <div class="card-head"><div><h3>Accounts</h3><div class="sub">{{ accounts().length }} accounts</div></div><button class="btn btn-primary btn-sm" (click)="openAccount()"><i class="bi bi-plus-lg"></i> Add account</button></div>
           <div class="table-wrap"><table class="table" style="min-width:420px"><tbody>
             @for (a of accounts(); track a.id) {
-              <tr>
+              <tr style="cursor:pointer" (click)="openAccount(a)" title="Edit account">
                 <td style="width:44px"><div class="txicon" [style.background]="tint(a.color)">{{ icon(a.type) }}</div></td>
                 <td><div style="font-weight:600">{{ a.name }}</div><div class="muted" style="font-size:12px">{{ a.institution || typeLabel(a.type) }}</div></td>
                 <td class="num" style="font-weight:650" [class.neg]="a.currentBalance < 0"><app-money [value]="a.currentBalance" column /></td>
-                <td style="width:60px" class="num"><button class="btn btn-ghost btn-sm btn-icon" (click)="remove(a)"><i class="bi bi-trash"></i></button></td>
+                <td style="width:88px" class="num">
+                  <button class="btn btn-ghost btn-sm btn-icon" (click)="openAccount(a); $event.stopPropagation()" title="Edit"><i class="bi bi-pencil"></i></button>
+                  <button class="btn btn-ghost btn-sm btn-icon" (click)="remove(a); $event.stopPropagation()" title="Delete"><i class="bi bi-trash"></i></button>
+                </td>
               </tr>
             }
           </tbody></table></div>
@@ -129,7 +132,7 @@ const ACCOUNT_ICON: Record<AccountType, string> = { MPESA: '📱', BANK: '🏦',
     @if (showAccount()) {
       <div class="overlay" (click)="showAccount.set(false)">
         <div class="modal" style="max-width:460px;width:100%" (click)="$event.stopPropagation()">
-          <div class="modal-head"><h3>Add account</h3><button class="btn btn-icon btn-ghost" (click)="showAccount.set(false)"><i class="bi bi-x-lg"></i></button></div>
+          <div class="modal-head"><h3>{{ editingAccountId() ? 'Edit account' : 'Add account' }}</h3><button class="btn btn-icon btn-ghost" (click)="showAccount.set(false)"><i class="bi bi-x-lg"></i></button></div>
           <div class="modal-body">
             <div class="field"><label>Account name</label><input class="input" [(ngModel)]="af.name" placeholder="e.g. Equity Bank" /></div>
             <div class="form-row">
@@ -145,7 +148,7 @@ const ACCOUNT_ICON: Record<AccountType, string> = { MPESA: '📱', BANK: '🏦',
           </div>
           <div class="modal-foot">
             <button class="btn btn-ghost" (click)="showAccount.set(false)">Cancel</button>
-            <button class="btn btn-primary" (click)="saveAccount()" [disabled]="!af.name || saving()">Add account</button>
+            <button class="btn btn-primary" (click)="saveAccount()" [disabled]="!af.name || saving()">{{ saving() ? 'Saving…' : (editingAccountId() ? 'Save changes' : 'Add account') }}</button>
           </div>
         </div>
       </div>
@@ -205,6 +208,7 @@ export class SettingsComponent implements OnInit {
   nameEdit = signal('');
 
   showAccount = signal(false);
+  editingAccountId = signal<string | null>(null);
   af = this.blankAccount();
 
   showCat = signal(false);
@@ -225,13 +229,25 @@ export class SettingsComponent implements OnInit {
 
   // --- Accounts ---
   blankAccount() { return { name: '', type: 'MPESA' as AccountType, openingBalance: 0 as number, institution: '', color: '#0ea5e9' }; }
-  openAccount(): void { this.af = this.blankAccount(); this.showAccount.set(true); }
+  openAccount(a?: Account): void {
+    if (a) {
+      this.editingAccountId.set(a.id);
+      this.af = { name: a.name, type: a.type, openingBalance: (a as any).openingBalance ?? 0, institution: a.institution ?? '', color: a.color ?? '#0ea5e9' };
+    } else {
+      this.editingAccountId.set(null);
+      this.af = this.blankAccount();
+    }
+    this.showAccount.set(true);
+  }
   saveAccount(): void {
     if (!this.af.name) return;
     this.saving.set(true);
-    this.api.createAccount({ name: this.af.name, type: this.af.type, openingBalance: Number(this.af.openingBalance) || 0, institution: this.af.institution || undefined, color: this.af.color }).subscribe({
-      next: () => { this.saving.set(false); this.showAccount.set(false); this.reload(); },
-      error: () => this.saving.set(false),
+    const body = { name: this.af.name, type: this.af.type, openingBalance: Number(this.af.openingBalance) || 0, institution: this.af.institution || undefined, color: this.af.color };
+    const editing = this.editingAccountId();
+    const req = editing ? this.api.updateAccount(editing, body) : this.api.createAccount(body);
+    req.subscribe({
+      next: () => { this.saving.set(false); this.showAccount.set(false); this.toast.success(editing ? 'Account updated' : 'Account added'); this.reload(); },
+      error: () => { this.saving.set(false); this.toast.error('Could not save the account'); },
     });
   }
   async remove(a: Account): Promise<void> {

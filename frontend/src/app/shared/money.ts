@@ -1,6 +1,7 @@
 import { booleanAttribute, Component, computed, inject, input } from '@angular/core';
 import { MoneyService } from '../core/money.service';
 import { PrivacyService } from '../core/privacy.service';
+import { currencyInfo } from '../core/currency';
 
 /**
  * Renders a money value as a small-caps currency symbol + a tabular number
@@ -49,9 +50,11 @@ export class MoneyComponent {
   direction = input<'in' | 'out' | '' | undefined>(undefined);
   /** Local override; when undefined, follows the global privacy setting. */
   hidden = input<boolean | undefined>(undefined);
+  /** Override the currency symbol (e.g. a USD budget) without changing the app currency. */
+  currency = input<string | undefined>(undefined);
 
   masked = computed(() => this.hidden() ?? this.privacy.hidden());
-  symbol = computed(() => this.money.symbol());
+  symbol = computed(() => (this.currency() ? currencyInfo(this.currency()).symbol : this.money.symbol()));
   num = computed(() => this.money.formatNumber(this.value() ?? 0, this.decimals()));
 
   /** Whether a sign/colour should be applied at all. */

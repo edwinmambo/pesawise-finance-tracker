@@ -2,6 +2,7 @@ import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
 import { Budget, BudgetItem, BudgetTemplate, Category, Insight } from '../../core/models';
+import { CURRENCIES } from '../../core/currency';
 import { MoneyService } from '../../core/money.service';
 import { ToastService } from '../../core/toast.service';
 import { MoneyComponent } from '../../shared/money';
@@ -114,7 +115,7 @@ const PRESETS: Pick[] = [
                     <h3>{{ b.name }}
                       @if (b.isActive) { <span class="badge" [style.background]="tint(b.color)" [style.color]="b.color" style="margin-left:6px">Active</span> }
                     </h3>
-                    <div class="sub">{{ planLabel(b.planType) }} · {{ b.items.length }} categories</div>
+                    <div class="sub">{{ planLabel(b.planType) }} · {{ b.items.length }} categories@if (b.currency && b.currency !== 'KES') { <span> · {{ b.currency }}</span> }</div>
                   </div>
                 </div>
                 <div class="dropdown">
@@ -132,12 +133,12 @@ const PRESETS: Pick[] = [
                   <div>
                     <div class="muted" style="font-size:12px;font-weight:650;text-transform:uppercase;letter-spacing:.04em">Spent this month</div>
                     <div style="font-size:20px;font-weight:750">
-                      <app-money [value]="b.totalSpent" /> <span class="muted" style="font-size:14px;font-weight:600">/ <app-money [value]="b.totalLimit" /></span>
+                      <app-money [value]="b.totalSpent" [currency]="b.currency" /> <span class="muted" style="font-size:14px;font-weight:600">/ <app-money [value]="b.totalLimit" [currency]="b.currency" /></span>
                     </div>
                   </div>
                   <div class="text-end">
                     <div class="muted" style="font-size:12px">Remaining</div>
-                    <b [class.neg]="b.totalRemaining < 0" [class.pos]="b.totalRemaining >= 0"><app-money [value]="b.totalRemaining" /></b>
+                    <b [class.neg]="b.totalRemaining < 0" [class.pos]="b.totalRemaining >= 0"><app-money [value]="b.totalRemaining" [currency]="b.currency" /></b>
                   </div>
                 </div>
                 <div class="progress thick" [class.over]="b.totalSpent > b.totalLimit">
@@ -152,7 +153,7 @@ const PRESETS: Pick[] = [
                         <div class="row between" style="gap:8px">
                           <span style="font-weight:600;font-size:13.5px">{{ it.label }}</span>
                           <span style="font-size:12.5px" [class.neg]="it.over">
-                            <app-money [value]="it.spent" /> <span class="muted">/ <app-money [value]="it.limitAmount" /></span>
+                            <app-money [value]="it.spent" [currency]="b.currency" /> <span class="muted">/ <app-money [value]="it.limitAmount" [currency]="b.currency" /></span>
                           </span>
                         </div>
                         <div class="progress mt-8" [class.over]="it.over">
@@ -178,9 +179,15 @@ const PRESETS: Pick[] = [
             <button class="btn btn-icon btn-ghost" (click)="closeModal()"><i class="bi bi-x-lg"></i></button>
           </div>
           <div class="modal-body">
+            <div class="field"><label>Budget name</label><input class="input input-lg" [(ngModel)]="form.name" placeholder="e.g. My monthly plan" /></div>
             <div class="form-row">
-              <div class="field"><label>Budget name</label><input class="input" [(ngModel)]="form.name" placeholder="My monthly plan" /></div>
-              <div class="field"><label>Planned monthly income (KES)</label><input class="input" type="number" [(ngModel)]="form.expectedIncome" /></div>
+              <div class="field"><label>Planned monthly income</label><input class="input" type="number" [(ngModel)]="form.expectedIncome" /></div>
+              <div class="field">
+                <label>Currency @if (editingId()) { <span class="muted" style="font-weight:500">· fixed</span> }</label>
+                <select class="input" [(ngModel)]="form.currency" [disabled]="!!editingId()">
+                  @for (c of currencies; track c.code) { <option [value]="c.code">{{ c.code }} — {{ c.name }}</option> }
+                </select>
+              </div>
             </div>
 
             <!-- Icon & colour: optional, collapsed to save space -->
@@ -209,9 +216,11 @@ const PRESETS: Pick[] = [
             <div class="builder mt-8">
               @for (it of form.items; track $index) {
                 <div class="builder-row">
-                  <span class="txicon flat sm">{{ it.icon }}</span>
-                  <input class="input" [(ngModel)]="it.label" placeholder="Category" style="flex:1" />
-                  <input class="input num" type="number" [(ngModel)]="it.limitAmount" placeholder="Limit" style="max-width:120px" />
+                  <div class="cat-field">
+                    <span class="cat-emoji">{{ it.icon }}</span>
+                    <input [(ngModel)]="it.label" placeholder="Category" />
+                  </div>
+                  <input class="input num amt" type="number" [(ngModel)]="it.limitAmount" placeholder="Limit" />
                   <button class="btn btn-icon btn-ghost" (click)="duplicateItem($index)" title="Duplicate"><i class="bi bi-copy"></i></button>
                   <button class="btn btn-icon btn-ghost" (click)="removeItem($index)" title="Remove"><i class="bi bi-x-lg"></i></button>
                 </div>
@@ -223,7 +232,7 @@ const PRESETS: Pick[] = [
 
             <div class="row between mt-16" style="padding-top:14px;border-top:1px solid var(--border)">
               <span class="muted">Total budgeted</span>
-              <b style="font-size:16px"><app-money [value]="formTotal()" /></b>
+              <b style="font-size:16px"><app-money [value]="formTotal()" [currency]="form.currency" /></b>
             </div>
           </div>
           <div class="modal-foot">
@@ -248,6 +257,13 @@ const PRESETS: Pick[] = [
     .field-label { font-size: 12.5px; font-weight: 640; color: var(--ink-2); display: block; margin: 6px 0 10px; }
     .builder { display: flex; flex-direction: column; gap: 10px; }
     .builder-row { display: flex; gap: 8px; align-items: center; }
+    .input-lg { font-size: 15.5px; font-weight: 600; }
+    /* Combined emoji + name field (mirrors how categories read "🏠 Rent"). */
+    .cat-field { flex: 1; min-width: 0; display: flex; align-items: center; gap: 7px; padding: 0 11px;
+      background: var(--surface); border: 1px solid var(--border-2); border-radius: 10px; }
+    .cat-field .cat-emoji { font-size: 16px; flex: none; }
+    .cat-field input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; color: var(--ink); font: inherit; padding: 9px 0; }
+    .builder-row .amt { max-width: 96px; flex: none; }
     .chip-wrap { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
     .pick-chip { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 560;
       border: 1px solid var(--border-2); background: var(--surface); color: var(--ink-2); cursor: pointer; transition: all .12s; }
@@ -279,7 +295,8 @@ export class BudgetsComponent implements OnInit {
   fromTemplate = signal(false);
   editingId = signal<string | null>(null);
   catSearch = '';
-  form: { name: string; expectedIncome: number; icon: string; color: string; items: ItemForm[] } = { name: '', expectedIncome: 0, icon: '📋', color: '#10a37f', items: [] };
+  form: { name: string; expectedIncome: number; icon: string; color: string; currency: string; items: ItemForm[] } = { name: '', expectedIncome: 0, icon: '📋', color: '#10a37f', currency: 'KES', items: [] };
+  currencies = CURRENCIES;
 
   expenseCategories = computed(() => this.categories().filter((c) => c.kind === 'EXPENSE'));
 
@@ -374,6 +391,7 @@ export class BudgetsComponent implements OnInit {
       expectedIncome: t.expectedIncome,
       icon: t.icon,
       color: t.color,
+      currency: 'KES',
       items: t.items.map((i) => ({ categoryId: this.matchCategory(i.category), label: i.category, limitAmount: i.limit, icon: i.icon, color: i.color })),
     };
     this.showModal.set(true);
@@ -398,7 +416,7 @@ export class BudgetsComponent implements OnInit {
     this.fromTemplate.set(false);
     this.showIcon.set(false);
     this.catSearch = '';
-    this.form = { name: '', expectedIncome: 0, icon: '📋', color: '#10a37f', items: [] };
+    this.form = { name: '', expectedIncome: 0, icon: '📋', color: '#10a37f', currency: 'KES', items: [] };
     this.showModal.set(true);
   }
 
@@ -412,6 +430,7 @@ export class BudgetsComponent implements OnInit {
       expectedIncome: b.expectedIncome,
       icon: b.icon,
       color: b.color,
+      currency: b.currency ?? 'KES',
       items: b.items.map((i) => ({ categoryId: i.categoryId, label: i.label, limitAmount: i.limitAmount, icon: i.icon, color: i.color })),
     };
     this.showModal.set(true);
@@ -435,8 +454,10 @@ export class BudgetsComponent implements OnInit {
       .filter((i) => i.label.trim() && i.limitAmount > 0)
       .map((i) => ({ categoryId: i.categoryId, label: i.label.trim(), limitAmount: +i.limitAmount, icon: i.icon, color: i.color }));
     const body: any = { name: this.form.name.trim(), expectedIncome: +this.form.expectedIncome || 0, icon: this.form.icon, color: this.form.color, items, planType: 'CUSTOM', isActive: true };
-    this.saving.set(true);
     const editing = this.editingId();
+    // Currency is set at creation and then fixed (Update DTO doesn't accept it).
+    if (!editing) body.currency = this.form.currency || 'KES';
+    this.saving.set(true);
     const req = editing ? this.api.updateBudget(editing, body) : this.api.createBudget(body);
     req.subscribe({
       next: () => { this.saving.set(false); this.showModal.set(false); this.toast.success(editing ? 'Budget updated' : `${body.name} created & set active`); this.reload(); },
