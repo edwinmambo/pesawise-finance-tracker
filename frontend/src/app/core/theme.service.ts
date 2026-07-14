@@ -3,13 +3,17 @@ import { Injectable, signal } from '@angular/core';
 export type ThemeMode = 'light' | 'dark';
 /** A full colour scheme (like a syntax theme): 'default' keeps the classic
  *  green-income / red-expense; the others recolour income/expense too. */
-export type Accent = 'default' | 'ocean' | 'violet' | 'sunset';
+export type Accent = 'default' | 'ocean' | 'violet' | 'sunset' | 'rose' | 'amber' | 'teal' | 'indigo';
 
 export const ACCENTS: { id: Accent; name: string; swatch: string }[] = [
   { id: 'default', name: 'Default', swatch: '#10a37f' },
   { id: 'ocean', name: 'Ocean', swatch: '#1f7ae0' },
   { id: 'violet', name: 'Violet', swatch: '#7c5cdb' },
   { id: 'sunset', name: 'Sunset', swatch: '#e8722a' },
+  { id: 'rose', name: 'Rose', swatch: '#e11d48' },
+  { id: 'amber', name: 'Amber', swatch: '#d97706' },
+  { id: 'teal', name: 'Teal', swatch: '#0d9488' },
+  { id: 'indigo', name: 'Indigo', swatch: '#4f46e5' },
 ];
 
 const MODE_KEY = 'pesawise_theme';

@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { API_BASE } from './api-base';
 import {
   Account,
+  AppNotification,
   Budget,
   BudgetTemplate,
   Category,
@@ -28,6 +29,17 @@ export class ApiService {
   // Dashboard
   dashboard(): Observable<DashboardSummary> {
     return this.http.get<DashboardSummary>(`${this.base}/dashboard/summary`);
+  }
+
+  // Notifications
+  notifications(): Observable<AppNotification[]> {
+    return this.http.get<AppNotification[]>(`${this.base}/notifications`);
+  }
+  markNotificationRead(id: string): Observable<{ ok: boolean }> {
+    return this.http.patch<{ ok: boolean }>(`${this.base}/notifications/${id}/read`, {});
+  }
+  markAllNotificationsRead(): Observable<{ ok: boolean }> {
+    return this.http.post<{ ok: boolean }>(`${this.base}/notifications/read-all`, {});
   }
 
   // Reports (server-side aggregation + exports)

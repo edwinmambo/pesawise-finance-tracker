@@ -2,6 +2,7 @@ import { Component, computed, inject, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
+import { ToastService } from '../../core/toast.service';
 import { ThemeService, ACCENTS } from '../../core/theme.service';
 import { PrefsService } from '../../core/prefs.service';
 import { CURRENCIES } from '../../core/currency';
@@ -19,26 +20,44 @@ const ACCOUNT_ICON: Record<AccountType, string> = { MPESA: '📱', BANK: '🏦',
   template: `
     <div class="page-actions"><div><h2 class="section-title">Settings</h2><div class="muted">Accounts, categories &amp; profile</div></div></div>
 
-    <div class="row gap-8 wrap" style="margin-bottom:18px">
-      <button class="chip" [class.active]="tab() === 'accounts'" (click)="tab.set('accounts')">Accounts</button>
-      <button class="chip" [class.active]="tab() === 'categories'" (click)="tab.set('categories')">Categories</button>
-      <button class="chip" [class.active]="tab() === 'profile'" (click)="tab.set('profile')">Profile</button>
+    <div class="segmented settings-tabs" style="margin-bottom:18px">
+      <button [class.active]="tab() === 'accounts'" (click)="tab.set('accounts')"><i class="bi bi-bank"></i> Accounts</button>
+      <button [class.active]="tab() === 'categories'" (click)="tab.set('categories')"><i class="bi bi-tags"></i> Categories</button>
+      <button [class.active]="tab() === 'profile'" (click)="tab.set('profile')"><i class="bi bi-person"></i> Profile</button>
     </div>
 
     @switch (tab()) {
       @case ('accounts') {
         <div class="card">
           <div class="card-head"><div><h3>Accounts</h3><div class="sub">{{ accounts().length }} accounts</div></div><button class="btn btn-primary btn-sm" (click)="openAccount()"><i class="bi bi-plus-lg"></i> Add account</button></div>
-          <div class="table-wrap"><table class="table" style="min-width:420px"><tbody>
+          <!-- Desktop table -->
+          <div class="table-wrap d-none d-md-block"><table class="table"><tbody>
             @for (a of accounts(); track a.id) {
-              <tr>
+              <tr style="cursor:pointer" (click)="openAccount(a)" title="Edit account">
                 <td style="width:44px"><div class="txicon" [style.background]="tint(a.color)">{{ icon(a.type) }}</div></td>
                 <td><div style="font-weight:600">{{ a.name }}</div><div class="muted" style="font-size:12px">{{ a.institution || typeLabel(a.type) }}</div></td>
                 <td class="num" style="font-weight:650" [class.neg]="a.currentBalance < 0"><app-money [value]="a.currentBalance" column /></td>
-                <td style="width:60px" class="num"><button class="btn btn-ghost btn-sm btn-icon" (click)="remove(a)"><i class="bi bi-trash"></i></button></td>
+                <td style="width:88px" class="num">
+                  <button class="btn btn-ghost btn-sm btn-icon" (click)="openAccount(a); $event.stopPropagation()" title="Edit"><i class="bi bi-pencil"></i></button>
+                  <button class="btn btn-ghost btn-sm btn-icon" (click)="remove(a); $event.stopPropagation()" title="Delete"><i class="bi bi-trash"></i></button>
+                </td>
               </tr>
             }
           </tbody></table></div>
+          <!-- Mobile cards (no horizontal scroll) -->
+          <div class="acc-cards d-md-none">
+            @for (a of accounts(); track a.id) {
+              <div class="acc-card" (click)="openAccount(a)">
+                <span class="txicon" [style.background]="tint(a.color)">{{ icon(a.type) }}</span>
+                <div class="acc-main">
+                  <div class="acc-name">{{ a.name }}</div>
+                  <div class="muted" style="font-size:12px">{{ a.institution || typeLabel(a.type) }}</div>
+                </div>
+                <app-money class="acc-bal" [value]="a.currentBalance" [class.neg]="a.currentBalance < 0" column />
+                <button class="btn btn-ghost btn-sm btn-icon" (click)="remove(a); $event.stopPropagation()" aria-label="Delete"><i class="bi bi-trash"></i></button>
+              </div>
+            }
+          </div>
         </div>
       }
       @case ('categories') {
@@ -128,7 +147,7 @@ const ACCOUNT_ICON: Record<AccountType, string> = { MPESA: '📱', BANK: '🏦',
     @if (showAccount()) {
       <div class="overlay" (click)="showAccount.set(false)">
         <div class="modal" style="max-width:460px;width:100%" (click)="$event.stopPropagation()">
-          <div class="modal-head"><h3>Add account</h3><button class="btn btn-icon btn-ghost" (click)="showAccount.set(false)"><i class="bi bi-x-lg"></i></button></div>
+          <div class="modal-head"><h3>{{ editingAccountId() ? 'Edit account' : 'Add account' }}</h3><button class="btn btn-icon btn-ghost" (click)="showAccount.set(false)"><i class="bi bi-x-lg"></i></button></div>
           <div class="modal-body">
             <div class="field"><label>Account name</label><input class="input" [(ngModel)]="af.name" placeholder="e.g. Equity Bank" /></div>
             <div class="form-row">
@@ -144,7 +163,7 @@ const ACCOUNT_ICON: Record<AccountType, string> = { MPESA: '📱', BANK: '🏦',
           </div>
           <div class="modal-foot">
             <button class="btn btn-ghost" (click)="showAccount.set(false)">Cancel</button>
-            <button class="btn btn-primary" (click)="saveAccount()" [disabled]="!af.name || saving()">Add account</button>
+            <button class="btn btn-primary" (click)="saveAccount()" [disabled]="!af.name || saving()">{{ saving() ? 'Saving…' : (editingAccountId() ? 'Save changes' : 'Add account') }}</button>
           </div>
         </div>
       </div>
@@ -172,12 +191,24 @@ const ACCOUNT_ICON: Record<AccountType, string> = { MPESA: '📱', BANK: '🏦',
     }
   `,
   styles: [`
+    .settings-tabs { width: 100%; max-width: 460px; }
+    .settings-tabs button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+    .acc-cards { display: flex; flex-direction: column; }
+    .acc-card { display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-bottom: 1px solid var(--border); cursor: pointer; }
+    .acc-card:last-child { border-bottom: none; }
+    .acc-main { flex: 1; min-width: 0; }
+    .acc-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .acc-bal { font-weight: 650; flex: none; }
     .cat-item { padding: 8px 12px; border-radius: 10px; background: var(--surface-2); font-size: 13.5px; }
     .cat-dot { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; margin-right: 6px; font-size: 14px; vertical-align: middle; }
     .sys { font-size: 10px; color: var(--muted); margin-left: 4px; }
     .prof-row { padding: 14px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
     .avatar-lg { width: 56px; height: 56px; border-radius: 50%; color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 18px; }
-    .acc-swatch { width: 30px; height: 30px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform .08s; }
+    .acc-swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform .08s; }
+    @media (max-width: 600px) {
+      .modal-body .field { margin-bottom: 10px; }
+      .acc-swatch { width: 24px; height: 24px; }
+    }
     .acc-swatch:hover { transform: scale(1.1); }
     .acc-swatch.sel { border-color: var(--ink); box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px currentColor; }
     .cat-preview { display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--surface-2); border-radius: 12px; margin-bottom: 16px; }
@@ -185,6 +216,7 @@ const ACCOUNT_ICON: Record<AccountType, string> = { MPESA: '📱', BANK: '🏦',
 })
 export class SettingsComponent implements OnInit {
   private api = inject(ApiService);
+  private toast = inject(ToastService);
   auth = inject(AuthService);
   theme = inject(ThemeService);
   prefs = inject(PrefsService);
@@ -201,6 +233,7 @@ export class SettingsComponent implements OnInit {
   nameEdit = signal('');
 
   showAccount = signal(false);
+  editingAccountId = signal<string | null>(null);
   af = this.blankAccount();
 
   showCat = signal(false);
@@ -221,18 +254,31 @@ export class SettingsComponent implements OnInit {
 
   // --- Accounts ---
   blankAccount() { return { name: '', type: 'MPESA' as AccountType, openingBalance: 0 as number, institution: '', color: '#0ea5e9' }; }
-  openAccount(): void { this.af = this.blankAccount(); this.showAccount.set(true); }
+  openAccount(a?: Account): void {
+    if (a) {
+      this.editingAccountId.set(a.id);
+      this.af = { name: a.name, type: a.type, openingBalance: (a as any).openingBalance ?? 0, institution: a.institution ?? '', color: a.color ?? '#0ea5e9' };
+    } else {
+      this.editingAccountId.set(null);
+      this.af = this.blankAccount();
+    }
+    this.showAccount.set(true);
+  }
   saveAccount(): void {
     if (!this.af.name) return;
     this.saving.set(true);
-    this.api.createAccount({ name: this.af.name, type: this.af.type, openingBalance: Number(this.af.openingBalance) || 0, institution: this.af.institution || undefined, color: this.af.color }).subscribe({
-      next: () => { this.saving.set(false); this.showAccount.set(false); this.reload(); },
-      error: () => this.saving.set(false),
+    const body = { name: this.af.name, type: this.af.type, openingBalance: Number(this.af.openingBalance) || 0, institution: this.af.institution || undefined, color: this.af.color };
+    const editing = this.editingAccountId();
+    const req = editing ? this.api.updateAccount(editing, body) : this.api.createAccount(body);
+    req.subscribe({
+      next: () => { this.saving.set(false); this.showAccount.set(false); this.toast.success(editing ? 'Account updated' : 'Account added'); this.reload(); },
+      error: () => { this.saving.set(false); this.toast.error('Could not save the account'); },
     });
   }
-  remove(a: Account): void {
-    if (!confirm(`Delete account "${a.name}"? Its transactions will be kept but unlinked.`)) return;
-    this.api.deleteAccount(a.id).subscribe(() => this.reload());
+  async remove(a: Account): Promise<void> {
+    const ok = await this.toast.confirm({ title: `Delete account "${a.name}"?`, message: 'Its transactions are kept but unlinked.', confirmText: 'Delete', danger: true });
+    if (!ok) return;
+    this.api.deleteAccount(a.id).subscribe(() => { this.toast.success('Account deleted'); this.reload(); });
   }
 
   // --- Categories ---
@@ -258,10 +304,11 @@ export class SettingsComponent implements OnInit {
       error: () => this.saving.set(false),
     });
   }
-  removeCat(c: Category): void {
+  async removeCat(c: Category): Promise<void> {
     if (c.isSystem) return;
-    if (!confirm(`Delete category "${c.name}"?`)) return;
-    this.api.deleteCategory(c.id).subscribe(() => this.reload());
+    const ok = await this.toast.confirm({ title: `Delete category "${c.name}"?`, confirmText: 'Delete', danger: true });
+    if (!ok) return;
+    this.api.deleteCategory(c.id).subscribe(() => { this.toast.success('Category deleted'); this.reload(); });
   }
 
   // --- Profile ---

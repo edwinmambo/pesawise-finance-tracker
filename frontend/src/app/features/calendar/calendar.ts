@@ -30,15 +30,19 @@ function ymd(d: Date): string {
   imports: [FormsModule, MoneyComponent],
   template: `
     <div class="page-actions">
-      <div><h2 class="section-title">Calendar</h2><div class="muted">Your income &amp; spending, day by day</div></div>
+      <div><h2 class="section-title">Calendar</h2><div class="muted">Tap any day to see its transactions and add one. Cards below update to the day you pick.</div></div>
       <button class="btn btn-sm" (click)="today()"><i class="bi bi-calendar-check"></i> Today</button>
     </div>
 
-    <!-- Month totals -->
+    <!-- Totals for the selected day (or the whole month when none is picked) -->
+    <div class="between" style="margin:0 2px 10px">
+      <div class="muted" style="font-size:13px;font-weight:650">{{ statLabel() }}</div>
+      @if (focusedCell()) { <button class="btn btn-sm btn-ghost" (click)="clearFocus()"><i class="bi bi-x-lg"></i> Whole month</button> }
+    </div>
     <div class="grid cols-3" style="margin-bottom:18px">
-      <div class="card stat"><div class="label"><span class="tileicon" style="background:color-mix(in srgb,var(--income) 16%,transparent);color:var(--income)"><i class="bi bi-arrow-down-left"></i></span> Income</div><div class="value pos"><app-money [value]="monthIncome()" /></div></div>
-      <div class="card stat"><div class="label"><span class="tileicon" style="background:color-mix(in srgb,var(--expense) 16%,transparent);color:var(--expense)"><i class="bi bi-arrow-up-right"></i></span> Spending</div><div class="value neg"><app-money [value]="monthExpense()" /></div></div>
-      <div class="card stat"><div class="label"><span class="tileicon" style="background:var(--brand-soft);color:var(--brand-strong)"><i class="bi bi-wallet2"></i></span> Net</div><div class="value" [class.pos]="monthNet() >= 0" [class.neg]="monthNet() < 0"><app-money [value]="monthNet()" signed /></div></div>
+      <div class="card stat"><div class="label"><span class="tileicon" style="background:color-mix(in srgb,var(--income) 16%,transparent);color:var(--income)"><i class="bi bi-arrow-down-left"></i></span> Income</div><div class="value pos"><app-money [value]="statIncome()" /></div></div>
+      <div class="card stat"><div class="label"><span class="tileicon" style="background:color-mix(in srgb,var(--expense) 16%,transparent);color:var(--expense)"><i class="bi bi-arrow-up-right"></i></span> Spending</div><div class="value neg"><app-money [value]="statExpense()" /></div></div>
+      <div class="card stat"><div class="label"><span class="tileicon" style="background:var(--brand-soft);color:var(--brand-strong)"><i class="bi bi-wallet2"></i></span> Net</div><div class="value" [class.pos]="statNet() >= 0" [class.neg]="statNet() < 0"><app-money [value]="statNet()" signed /></div></div>
     </div>
 
     <div class="card card-pad cal">
@@ -56,8 +60,8 @@ function ymd(d: Date): string {
         </div>
         <div class="cal-grid">
           @for (c of cells(); track c.key) {
-            <button type="button" class="cal-cell" [class.out]="!c.inMonth" [class.today]="c.isToday"
-                    [style.background]="cellBg(c)" (click)="openDay(c)">
+            <button type="button" class="cal-cell" [class.out]="!c.inMonth" [class.today]="c.isToday" [class.focused]="c.key === focusedKey()"
+                    [style.background]="cellBg(c)" (click)="focusDay(c)">
               <span class="cal-day">{{ c.day }}</span>
               @if (c.count) {
                 <span class="cal-amts">
@@ -68,45 +72,47 @@ function ymd(d: Date): string {
             </button>
           }
         </div>
+        <!-- Legend so the colour coding is self-explanatory -->
+        <div class="cal-legend">
+          <span><span class="lg-sw" style="background:color-mix(in srgb,var(--income) 40%,var(--surface-2))"></span> Earned more than spent</span>
+          <span><span class="lg-sw" style="background:color-mix(in srgb,var(--expense) 40%,var(--surface-2))"></span> Spent more than earned</span>
+          <span class="muted">Each day shows <span class="pos">+in</span> / <span class="neg">−out</span>.</span>
+        </div>
       }
     </div>
 
-    <!-- Day detail modal -->
-    @if (selected(); as day) {
-      <div class="overlay" (click)="selected.set(null)">
-        <div class="modal" style="max-width:480px;width:100%" (click)="$event.stopPropagation()">
-          <div class="modal-head">
-            <div><h3>{{ prettyDate(day.key) }}</h3><div class="muted" style="font-size:12.5px">{{ dayTx().length }} transactions</div></div>
-            <button class="btn btn-icon btn-ghost" (click)="selected.set(null)"><i class="bi bi-x-lg"></i></button>
-          </div>
-          <div class="modal-body">
-            @if (dayTx().length) {
-              <div class="day-list">
-                @for (t of dayTx(); track t.id) {
-                  <div class="day-row">
-                    <span class="txicon" [style.background]="tint(t.category?.color)">{{ t.category?.icon || (t.type === 'INCOME' ? '💰' : '🧾') }}</span>
-                    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13.5px">{{ t.note || t.category?.name || 'Transaction' }}</div><div class="muted" style="font-size:11.5px">{{ t.category?.name || channelLabel(t.channel) }}</div></div>
-                    <app-money [value]="t.amount" signed />
-                  </div>
-                }
-              </div>
-            } @else { <div class="muted" style="text-align:center;padding:16px">Nothing on this day yet.</div> }
+    <!-- Selected-day detail (inline, no pop-up) -->
+    @if (focusedCell(); as day) {
+      <div class="card card-pad mt-16 day-panel">
+        <div class="between">
+          <div><h3 style="font-size:16px">{{ prettyDate(day.key) }}</h3><div class="muted" style="font-size:12.5px">{{ dayTx().length }} transaction{{ dayTx().length === 1 ? '' : 's' }} · net <app-money [value]="day.net" signed /></div></div>
+          <button class="btn btn-sm btn-ghost" (click)="clearFocus()"><i class="bi bi-x-lg"></i></button>
+        </div>
 
-            <div class="quick mt-16">
-              <div class="field-label">Quick add on this day</div>
-              <div class="row gap-8" style="margin-bottom:10px">
-                <button class="chip" [class.active]="qa.type === 'EXPENSE'" (click)="qa.type = 'EXPENSE'; qa.categoryId = ''" style="flex:1;justify-content:center">Expense</button>
-                <button class="chip" [class.active]="qa.type === 'INCOME'" (click)="qa.type = 'INCOME'; qa.categoryId = ''" style="flex:1;justify-content:center">Income</button>
+        @if (dayTx().length) {
+          <div class="day-list mt-16">
+            @for (t of dayTx(); track t.id) {
+              <div class="day-row">
+                <span class="txicon" [style.background]="tint(t.category?.color)">{{ t.category?.icon || (t.type === 'INCOME' ? '💰' : '🧾') }}</span>
+                <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13.5px">{{ t.note || t.category?.name || 'Transaction' }}</div><div class="muted" style="font-size:11.5px">{{ t.category?.name || channelLabel(t.channel) }}</div></div>
+                <app-money [value]="t.amount" [direction]="t.type === 'INCOME' ? 'in' : 'out'" column />
               </div>
-              <div class="form-row">
-                <div class="field"><input class="input" type="number" [(ngModel)]="qa.amount" placeholder="Amount" /></div>
-                <div class="field"><select class="input" [(ngModel)]="qa.categoryId"><option value="">— Category —</option>@for (c of qaCategories(); track c.id) { <option [value]="c.id">{{ c.icon }} {{ c.name }}</option> }</select></div>
-              </div>
-              <input class="input" [(ngModel)]="qa.note" placeholder="Note (optional)" />
-            </div>
+            }
           </div>
-          <div class="modal-foot">
-            <button class="btn btn-ghost" (click)="selected.set(null)">Close</button>
+        } @else { <div class="muted" style="padding:14px 0">Nothing recorded on this day yet.</div> }
+
+        <div class="quick mt-16">
+          <div class="field-label">Quick add on this day</div>
+          <div class="row gap-8" style="margin-bottom:10px">
+            <button class="chip" [class.active]="qa.type === 'EXPENSE'" (click)="qa.type = 'EXPENSE'; qa.categoryId = ''" style="flex:1;justify-content:center">Expense</button>
+            <button class="chip" [class.active]="qa.type === 'INCOME'" (click)="qa.type = 'INCOME'; qa.categoryId = ''" style="flex:1;justify-content:center">Income</button>
+          </div>
+          <div class="form-row">
+            <div class="field"><input class="input" type="number" [(ngModel)]="qa.amount" placeholder="Amount" /></div>
+            <div class="field"><select class="input" [(ngModel)]="qa.categoryId"><option value="">— Category —</option>@for (c of qaCategories(); track c.id) { <option [value]="c.id">{{ c.icon }} {{ c.name }}</option> }</select></div>
+          </div>
+          <div class="row gap-8 mt-8">
+            <input class="input" [(ngModel)]="qa.note" placeholder="Note (optional)" style="flex:1" />
             <button class="btn btn-primary" (click)="quickAdd(day.key)" [disabled]="!qa.amount || saving()">{{ saving() ? 'Adding…' : 'Add' }}</button>
           </div>
         </div>
@@ -114,6 +120,11 @@ function ymd(d: Date): string {
     }
   `,
   styles: [`
+    .cal-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--ink-2); }
+    .cal-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+    .lg-sw { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+    .day-panel .day-list { display: flex; flex-direction: column; gap: 10px; }
+    .day-panel .day-row { display: flex; align-items: center; gap: 11px; }
     .cal-title { display: flex; align-items: center; justify-content: center; gap: 18px; padding: 2px 0 16px; }
     .cal-my { font-size: 20px; font-weight: 700; letter-spacing: -.01em; min-width: 190px; text-align: center; }
     .cal-my .yr { font-family: var(--num-font); color: var(--muted); font-weight: 600; }
@@ -131,6 +142,7 @@ function ymd(d: Date): string {
     .cal-cell:hover { border-color: var(--brand); transform: translateY(-1px); box-shadow: var(--shadow); }
     .cal-cell.out { opacity: .4; }
     .cal-cell.today { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand); }
+    .cal-cell.focused { border-color: var(--brand-strong); box-shadow: 0 0 0 2px var(--brand); transform: translateY(-1px); }
     .cal-day { font-weight: 650; font-size: 13px; font-family: var(--num-font); }
     .cal-amts { margin-top: auto; display: flex; flex-direction: column; gap: 1px; font-size: 10.5px; font-weight: 700; font-family: var(--num-font); font-variant-numeric: tabular-nums; line-height: 1.25; }
     @keyframes cellIn { from { opacity: 0; transform: scale(.96); } }
@@ -164,7 +176,8 @@ export class CalendarComponent implements OnInit {
       ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
       : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
   );
-  selected = signal<DayCell | null>(null);
+  /** Persistently highlighted day; drives the top figures, highlight + panel. */
+  focusedKey = signal<string | null>(null);
   qa = { type: 'EXPENSE' as TransactionType, amount: null as number | null, categoryId: '', note: '' };
 
   private byDay = computed(() => {
@@ -207,8 +220,18 @@ export class CalendarComponent implements OnInit {
   monthNet = computed(() => this.monthIncome() - this.monthExpense());
   monthName = computed(() => MONTHS[this.cursor().m]);
 
+  /** The focused day (fresh from cells so it stays correct after edits). */
+  focusedCell = computed(() => {
+    const key = this.focusedKey();
+    return key ? this.cells().find((c) => c.key === key) ?? null : null;
+  });
+  statIncome = computed(() => this.focusedCell()?.income ?? this.monthIncome());
+  statExpense = computed(() => this.focusedCell()?.expense ?? this.monthExpense());
+  statNet = computed(() => { const f = this.focusedCell(); return f ? f.net : this.monthNet(); });
+  statLabel = computed(() => { const f = this.focusedCell(); return f ? fmtDate(f.key) : `${this.monthName()} ${this.cursor().y} · whole month`; });
+
   dayTx = computed(() => {
-    const key = this.selected()?.key;
+    const key = this.focusedKey();
     if (!key) return [];
     return this.txns().filter((t) => t.date.split('T')[0] === key);
   });
@@ -227,12 +250,15 @@ export class CalendarComponent implements OnInit {
     const { y, m } = this.cursor();
     const d = new Date(y, m + delta, 1);
     this.cursor.set({ y: d.getFullYear(), m: d.getMonth() });
+    this.focusedKey.set(null);
   }
-  today(): void { this.cursor.set({ y: this.now.getFullYear(), m: this.now.getMonth() }); }
+  today(): void { this.cursor.set({ y: this.now.getFullYear(), m: this.now.getMonth() }); this.focusedKey.set(null); }
+  clearFocus(): void { this.focusedKey.set(null); }
 
-  openDay(c: DayCell): void {
+  /** Select a day → highlight it, update the figures, and reveal its inline panel. */
+  focusDay(c: DayCell): void {
     this.qa = { type: 'EXPENSE', amount: null, categoryId: '', note: '' };
-    this.selected.set(c);
+    this.focusedKey.set(this.focusedKey() === c.key ? null : c.key);
   }
   quickAdd(key: string): void {
     if (!this.qa.amount) return;
@@ -241,7 +267,7 @@ export class CalendarComponent implements OnInit {
       type: this.qa.type, amount: Number(this.qa.amount), date: key, channel: 'MPESA',
       categoryId: this.qa.categoryId || undefined, note: this.qa.note || undefined,
     }).subscribe({
-      next: () => { this.saving.set(false); this.selected.set(null); this.reload(); },
+      next: () => { this.saving.set(false); this.qa = { type: 'EXPENSE', amount: null, categoryId: '', note: '' }; this.reload(); },
       error: () => this.saving.set(false),
     });
   }

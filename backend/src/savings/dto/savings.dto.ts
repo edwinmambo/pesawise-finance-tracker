@@ -29,6 +29,11 @@ export class CreateSavingsGoalDto {
   @IsOptional()
   @IsHexColor()
   color?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(8)
+  currency?: string;
 }
 
 export class UpdateSavingsGoalDto {
@@ -54,6 +59,11 @@ export class UpdateSavingsGoalDto {
   @IsOptional()
   @IsHexColor()
   color?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(8)
+  currency?: string;
 }
 
 export class CreateContributionDto {

@@ -100,6 +100,7 @@ export interface SavingsGoal {
   targetDate?: string;
   icon: string;
   color: string;
+  currency?: string;
   contributions?: SavingsContribution[];
   // computed
   savedAmount: number;
@@ -128,6 +129,7 @@ export interface Budget {
   expectedIncome: number;
   icon: string;
   color: string;
+  currency?: string;
   isActive: boolean;
   items: BudgetItem[];
   // computed
@@ -161,6 +163,17 @@ export type InsightKind = 'positive' | 'warning' | 'neutral';
 export interface Insight {
   kind: InsightKind;
   text: string;
+}
+
+export interface AppNotification {
+  id: string;
+  type: string;
+  title: string;
+  body: string;
+  icon: string;
+  link?: string;
+  read: boolean;
+  createdAt: string;
 }
 
 export interface ReportData {

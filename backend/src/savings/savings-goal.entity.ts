@@ -45,6 +45,10 @@ export class SavingsGoal {
   @Column({ default: '#16a34a' })
   color: string;
 
+  /** Display currency for this goal's amounts. */
+  @Column({ default: 'KES' })
+  currency: string;
+
   @OneToMany(() => SavingsContribution, (c) => c.goal)
   contributions: SavingsContribution[];
 

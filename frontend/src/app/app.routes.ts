@@ -27,6 +27,7 @@ export const routes: Routes = [
       { path: 'import', loadComponent: () => import('./features/import/import').then((m) => m.ImportComponent) },
       { path: 'recurring', loadComponent: () => import('./features/recurring/recurring').then((m) => m.RecurringComponent) },
       { path: 'settings', loadComponent: () => import('./features/settings/settings').then((m) => m.SettingsComponent) },
+      { path: 'about', loadComponent: () => import('./features/about/about').then((m) => m.AboutComponent) },
     ],
   },
   { path: '**', redirectTo: '' },

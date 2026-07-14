@@ -73,6 +73,7 @@ export class BudgetsService {
       expectedIncome: dto.expectedIncome ?? 0,
       icon: dto.icon ?? '📋',
       color: dto.color ?? '#10a37f',
+      currency: dto.currency ?? 'KES',
       isActive: dto.isActive ?? true,
       items: dto.items.map((i) =>
         this.budgets.manager.create(BudgetItem, {

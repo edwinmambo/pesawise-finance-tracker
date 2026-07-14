@@ -1,10 +1,12 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { ThemeService, ACCENTS } from '../../core/theme.service';
 import { PrivacyService } from '../../core/privacy.service';
 import { I18nService } from '../../core/i18n.service';
+import { NotificationsService } from '../../core/notifications.service';
+import { AppNotification } from '../../core/models';
 
 interface NavLink { path: string; label: string; icon: string; exact?: boolean; }
 
@@ -45,6 +47,7 @@ interface NavLink { path: string; label: string; icon: string; exact?: boolean; 
             <button class="btn btn-icon" (click)="privacy.toggle()" [attr.aria-label]="privacy.hidden() ? 'Show balances' : 'Hide balances'">
               <i class="bi" [class]="privacy.hidden() ? 'bi-eye-slash' : 'bi-eye'"></i>
             </button>
+            <ng-container [ngTemplateOutlet]="bellBtn"></ng-container>
             <ng-container [ngTemplateOutlet]="profileMenu"></ng-container>
           </div>
         </nav>
@@ -52,13 +55,14 @@ interface NavLink { path: string; label: string; icon: string; exact?: boolean; 
         <!-- Desktop topbar -->
         <header class="topbar d-none d-lg-flex">
           <div>
-            <h1>{{ greeting() }}, {{ firstName() }} 👋</h1>
-            <div class="sub">Here's your financial picture today</div>
+            <h1>{{ todayLong() }}</h1>
+            <div class="sub">Welcome back, {{ firstName() }} 👋</div>
           </div>
           <div class="flex-grow-1"></div>
           <button class="btn btn-icon" (click)="privacy.toggle()" [title]="privacy.hidden() ? 'Show balances' : 'Hide balances'">
             <i class="bi" [class]="privacy.hidden() ? 'bi-eye-slash' : 'bi-eye'"></i>
           </button>
+          <ng-container [ngTemplateOutlet]="bellBtn"></ng-container>
           <ng-container [ngTemplateOutlet]="profileMenu"></ng-container>
         </header>
 
@@ -68,10 +72,48 @@ interface NavLink { path: string; label: string; icon: string; exact?: boolean; 
       </div>
     </div>
 
+    <!-- Notification bell button (opens the shared flyout panel) -->
+    <ng-template #bellBtn>
+      <button class="btn btn-icon bell-btn" type="button" aria-label="Notifications" (click)="toggleBell()">
+        <i class="bi bi-bell"></i>
+        @if (notif.unread()) { <span class="bell-badge">{{ notif.unread() > 9 ? '9+' : notif.unread() }}</span> }
+      </button>
+    </ng-template>
+
+    <!-- Notification flyout — a self-controlled fixed panel so nothing clips it. -->
+    @if (bellOpen()) {
+      <div class="notif-backdrop" (click)="bellOpen.set(false)"></div>
+      <div class="notif-panel" role="dialog" aria-label="Notifications">
+        <div class="notif-head">
+          <b>Notifications</b>
+          <div class="row gap-8">
+            @if (notif.unread()) { <button class="btn btn-sm btn-ghost" (click)="notif.markAllRead()">Mark all read</button> }
+            <button class="btn btn-icon btn-ghost btn-sm" (click)="bellOpen.set(false)" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+          </div>
+        </div>
+        @if (notif.items().length) {
+          <div class="notif-list">
+            @for (n of notif.items(); track n.id) {
+              <a class="notif-item" [class.unread]="!n.read" [routerLink]="n.link || null" (click)="onNotifClick(n)">
+                <span class="notif-ic">{{ n.icon }}</span>
+                <span class="notif-main">
+                  <span class="notif-title">{{ n.title }}</span>
+                  <span class="notif-body">{{ n.body }}</span>
+                </span>
+                @if (!n.read) { <span class="notif-dot"></span> }
+              </a>
+            }
+          </div>
+        } @else {
+          <div class="notif-empty">You're all caught up 🎉</div>
+        }
+      </div>
+    }
+
     <!-- Profile avatar dropdown (Google-style) -->
     <ng-template #profileMenu>
       <div class="dropdown">
-        <button class="avatar-btn" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Profile menu">
+        <button class="avatar-btn" type="button" data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false" aria-label="Profile menu">
           <span class="avatar" [style.background]="avatarBg()">{{ initials() }}</span>
         </button>
         <div class="dropdown-menu dropdown-menu-end profile-menu">
@@ -83,7 +125,7 @@ interface NavLink { path: string; label: string; icon: string; exact?: boolean; 
             </div>
           </div>
 
-          <div class="pm-section">
+          <div class="pm-section" (click)="$event.stopPropagation()">
             <div class="pm-label">Appearance</div>
             <div class="segmented" style="width:100%">
               <button style="flex:1" [class.active]="theme.mode() === 'light'" (click)="theme.setMode('light')">☀️ Light</button>
@@ -96,7 +138,7 @@ interface NavLink { path: string; label: string; icon: string; exact?: boolean; 
             </div>
           </div>
 
-          <div class="pm-section">
+          <div class="pm-section" (click)="$event.stopPropagation()">
             <div class="pm-label">{{ i18n.t('common.language') }}</div>
             <div class="segmented" style="width:100%">
               <button style="flex:1" [class.active]="i18n.lang() === 'en'" (click)="i18n.setLang('en')">🇬🇧 English</button>
@@ -104,11 +146,12 @@ interface NavLink { path: string; label: string; icon: string; exact?: boolean; 
             </div>
           </div>
 
-          <button class="pm-item" (click)="privacy.toggle()">
+          <button class="pm-item" (click)="privacy.toggle(); $event.stopPropagation()">
             <i class="bi" [class]="privacy.hidden() ? 'bi-eye' : 'bi-eye-slash'"></i>
             {{ privacy.hidden() ? 'Show balances' : 'Hide balances' }}
           </button>
           <a class="pm-item" routerLink="/settings"><i class="bi bi-gear"></i> {{ i18n.t('nav.settings') }}</a>
+          <a class="pm-item" routerLink="/about"><i class="bi bi-info-circle"></i> {{ i18n.t('nav.about') }}</a>
           <button class="pm-item danger" (click)="auth.logout()"><i class="bi bi-box-arrow-left"></i> {{ i18n.t('action.logout') }}</button>
         </div>
       </div>
@@ -143,6 +186,28 @@ interface NavLink { path: string; label: string; icon: string; exact?: boolean; 
     </div>
   `,
   styles: [`
+    .bell-btn { position: relative; }
+    .bell-badge { position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px;
+      background: var(--expense); color: #fff; font-size: 10px; font-weight: 700; display: grid; place-items: center; line-height: 1;
+      box-shadow: 0 0 0 2px var(--surface); }
+    .notif-backdrop { position: fixed; inset: 0; z-index: 1090; }
+    .notif-panel { position: fixed; top: 62px; right: 16px; z-index: 1091; width: 360px; max-width: calc(100vw - 24px);
+      max-height: min(70vh, 560px); overflow: hidden; display: flex; flex-direction: column;
+      background: var(--surface); border: 1px solid var(--border-2); border-radius: 16px; box-shadow: var(--shadow-lg);
+      animation: pop .16s ease; }
+    @media (max-width: 600px) { .notif-panel { top: 60px; left: 12px; right: 12px; width: auto; } }
+    .notif-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border); flex: none; }
+    .notif-list { overflow-y: auto; }
+    .notif-item { display: flex; align-items: flex-start; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--border); text-decoration: none; color: var(--ink); position: relative; }
+    .notif-item:last-child { border-bottom: none; }
+    .notif-item:hover { background: var(--surface-2); }
+    .notif-item.unread { background: color-mix(in srgb, var(--brand) 7%, var(--surface)); }
+    .notif-ic { font-size: 18px; flex: none; }
+    .notif-main { display: flex; flex-direction: column; min-width: 0; }
+    .notif-title { font-weight: 650; font-size: 13px; }
+    .notif-body { font-size: 12px; color: var(--ink-2); }
+    .notif-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); flex: none; margin-top: 5px; margin-left: auto; }
+    .notif-empty { padding: 26px 14px; text-align: center; color: var(--muted); font-size: 13px; }
     .avatar-btn { border: none; background: transparent; padding: 2px; border-radius: 50%; cursor: pointer; line-height: 0; transition: transform .1s, box-shadow .12s; }
     .avatar-btn:hover { transform: translateY(-1px); }
     .avatar-btn .avatar { width: 38px; height: 38px; border-radius: 50%; color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 13px; box-shadow: 0 0 0 2px var(--surface), 0 4px 10px rgba(0,0,0,.15); }
@@ -169,6 +234,18 @@ export class ShellComponent {
   theme = inject(ThemeService);
   privacy = inject(PrivacyService);
   i18n = inject(I18nService);
+  notif = inject(NotificationsService);
+  bellOpen = signal(false);
+
+  toggleBell(): void {
+    const open = !this.bellOpen();
+    this.bellOpen.set(open);
+    if (open) this.notif.refresh();
+  }
+  onNotifClick(n: AppNotification): void {
+    this.notif.markRead(n);
+    this.bellOpen.set(false);
+  }
   accents = ACCENTS;
 
   private baseLinks: (Omit<NavLink, 'label'> & { key: string })[] = [
@@ -207,5 +284,9 @@ export class ShellComponent {
     if (h < 12) return 'Good morning';
     if (h < 17) return 'Good afternoon';
     return 'Good evening';
+  }
+  /** Local long date, e.g. "Monday, 14 July". */
+  todayLong(): string {
+    return new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
   }
 }

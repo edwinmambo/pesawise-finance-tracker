@@ -5,6 +5,7 @@ import { ApiService } from '../../core/api.service';
 import { Budget, DashboardSummary } from '../../core/models';
 import { MoneyService } from '../../core/money.service';
 import { PrivacyService } from '../../core/privacy.service';
+import { AuthService } from '../../core/auth.service';
 import { ThemeService } from '../../core/theme.service';
 import { paletteColors, paletteColor } from '../../shared/chart-colors';
 import { channelColor, channelLabel } from '../../core/channel-colors';
@@ -19,6 +20,11 @@ import { RingComponent } from '../../shared/ring';
   standalone: true,
   imports: [RouterLink, LowerCasePipe, MoneyComponent, BarChartComponent, DonutComponent, RingComponent],
   template: `
+    <div class="greet">
+      <h1>{{ greeting() }}, {{ firstName() }} {{ greetEmoji() }}</h1>
+      <div class="muted">Here's your money at a glance.</div>
+    </div>
+
     @if (loading()) {
       <div class="spinner"></div>
     } @else if (data(); as d) {
@@ -214,6 +220,8 @@ import { RingComponent } from '../../shared/ring';
     }
   `,
   styles: [`
+    .greet { margin: 2px 0 4px; }
+    .greet h1 { font-size: clamp(20px, 5vw, 26px); font-weight: 750; letter-spacing: -.01em; }
     a.card.stat { text-decoration: none; color: var(--ink); }
     .eye-btn { border: none; background: transparent; color: var(--muted); cursor: pointer; padding: 3px 6px; font-size: 14px; border-radius: 7px; line-height: 1; }
     .eye-btn:hover { color: var(--ink); background: var(--surface-2); }
@@ -235,6 +243,18 @@ export class DashboardComponent implements OnInit {
   private money = inject(MoneyService);
   private priv = inject(PrivacyService);
   private theme = inject(ThemeService);
+  private auth = inject(AuthService);
+
+  firstName(): string { return this.auth.user()?.name?.split(' ')[0] || 'there'; }
+  /** Local-time greeting + a matching emoji. */
+  greeting(): string {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 17) return 'Good afternoon';
+    if (h < 22) return 'Good evening';
+    return 'Good night';
+  }
+  greetEmoji(): string { return '👋'; }
   data = signal<DashboardSummary | null>(null);
   activeBudget = signal<Budget | null>(null);
   loading = signal(true);
