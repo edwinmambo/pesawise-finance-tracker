@@ -62,6 +62,13 @@ collide. Reconcile it **once**, either way:
   an un-reconciled service stays up — but its schema won't gain the new columns
   until you do one of the above.
 
+> **First deploy of a new schema can briefly 500.** During a rollout the new web
+> process may start serving *before* `migration:run` finishes creating the new
+> tables/columns, so requests that touch them (e.g. login writing a refresh
+> token) can return a short-lived 500. It clears on its own once migrations
+> complete — wait ~30–60s and retry before assuming a real failure. If it
+> *persists*, that database needs the reconcile above (its migrations never ran).
+
 ---
 
 ## 4. CI/CD: auto-preview + approve production
@@ -73,6 +80,14 @@ To gate **production** behind your approval:
    → name `RENDER_DEPLOY_HOOK_PROD`, value = that URL.
 3. **GitHub → Settings → Environments → New environment → `production`** →
    enable **Required reviewers** and add yourself.
+
+> **The secret is required, and its absence is silent.** If
+> `RENDER_DEPLOY_HOOK_PROD` isn't set, the `deploy-production` step logs
+> `RENDER_DEPLOY_HOOK_PROD secret not set — skipping.` and **exits 0** — the job
+> shows ✅ green but production is **never deployed**. If a merge to `main` doesn't
+> show up in prod, check that this secret exists first. (To deploy without it,
+> POST the hook URL manually: `curl -X POST "<hook-url>"`, or use Render →
+> service → **Manual Deploy → Deploy latest commit**.)
 
 Now the flow on every push to `main`:
 - [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) builds & type-checks both apps.
